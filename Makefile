@@ -81,10 +81,10 @@ PROGRAM   =
 
 # The source file types (headers excluded).
 # .c indicates C source files, and others C++ ones.
-SRCEXTS = .c .C .cc .cpp .CPP .c++ .cxx .cp
+SRCEXTS = .c .C .cc .cpp .c++ .cxx .cp
 
 # The header file types.
-HDREXTS = .h .H .hh .hpp .HPP .h++ .hxx .hp
+HDREXTS = .h .H .hh .hpp .h++ .hxx .hp
 
 # The pre-processor and compiler options.
 # Users can override those variables from the command line.
@@ -92,10 +92,10 @@ CFLAGS  = -g -O2
 CXXFLAGS= -g -O2
 
 # The C program compiler.
-#CC     = gcc
+CC     = gcc
 
 # The C++ program compiler.
-#CXX    = g++
+CXX    = g++
 
 # Un-comment the following line to compile C programs as C++ ones.
 #CC     = $(CXX)
