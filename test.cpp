@@ -1,10 +1,10 @@
-#include <iostream>
 #include <cstdlib>
+#include <iostream>
 #include "center.h"
 
 int main() {
     srand(1);
-    int n = 10;
+    int n = 100;
     std::vector<Coord> S(n);
     for (Coord &coord: S) {
         coord.x = Real((static_cast<double>(rand()) / RAND_MAX * 100));

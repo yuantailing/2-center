@@ -63,7 +63,7 @@ MY_CFLAGS =
 MY_LIBS   =
 
 # The pre-processor options used by the cpp (man cpp for more).
-CPPFLAGS  = -Wall -std=c++11
+CPPFLAGS  = -Wall -Werror -std=c++11
 
 # The options used in linking as well as in any direct use of ld.
 LDFLAGS   =
@@ -74,17 +74,17 @@ SRCDIRS   =
 
 # The executable file name.
 # If not specified, current directory name or `a.out' will be used.
-PROGRAM   =
+PROGRAM   = 2-center
 
 ## Implicit Section: change the following only when necessary.
 ##==========================================================================
 
 # The source file types (headers excluded).
 # .c indicates C source files, and others C++ ones.
-SRCEXTS = .c .C .cc .cpp .c++ .cxx .cp
+SRCEXTS = .c .cc .cpp .c++ .cxx .cp
 
 # The header file types.
-HDREXTS = .h .H .hh .hpp .h++ .hxx .hp
+HDREXTS = .h .hh .hpp .h++ .hxx .hp
 
 # The pre-processor and compiler options.
 # Users can override those variables from the command line.
