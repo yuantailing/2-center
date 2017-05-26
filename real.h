@@ -1,6 +1,7 @@
 #ifndef REAL_H
 #define REAL_H
 
+#include <cmath>
 #include <vector>
 
 typedef double Float; // 用于表示角度
@@ -15,8 +16,11 @@ public:
     Coord &operator =(Coord const &) = default;
     Real x;
     Real y;
-    Coord operator -(Coord const &o) const { return Coord(x - o.x, y - o.y); }
+    Real norm() const { return std::sqrt(x * x + y * y); }
     Coord operator +(Coord const &o) const { return Coord(x + o.x, y + o.y); }
+    Coord operator -(Coord const &o) const { return Coord(x - o.x, y - o.y); }
+    Coord operator *(Real r) const { return Coord(x * r, y * r); }
+    Coord operator /(Real r) const { return Coord(x / r, y / r); }
     bool operator ==(Coord const &o) const { return x == o.x && y == o.y; }
 };
 
@@ -35,5 +39,12 @@ inline bool to_left(Coord p, Coord q, Coord s) {
     Real x = p.x * q.y - p.y * q.x + q.x * s.y - q.y * s.x + s.x * p.y - s.y * p.x;
     return x > 0;
 }
+
+// 判断s是否在pq的左边
+inline bool not_to_right(Coord p, Coord q, Coord s) {
+    Real x = p.x * q.y - p.y * q.x + q.x * s.y - q.y * s.x + s.x * p.y - s.y * p.x;
+    return x >= 0;
+}
+
 
 #endif // KPTREE_H

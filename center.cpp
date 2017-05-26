@@ -1,13 +1,17 @@
 #include "center.h"
 #include <cassert>
 #include <cmath>
-#include <iostream>
 #include <algorithm>
+#include <iostream>
+#include <stdexcept>
 #include "kptree.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 // S内所有点绕o顺时针旋转theta弧度
-void rotate(std::vector<Coord> S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
+void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
     Float c = std::cos(theta);
     Float s = std::sin(theta);
     for (Coord &coord: S) {
@@ -16,16 +20,18 @@ void rotate(std::vector<Coord> S, Float theta, Coord const &o=Coord(Real(0), Rea
     }
 }
 
+static bool lt_by_x(Coord const &a, Coord const &b) {
+    return a.x < b.x ? true : (a.x == b.x ? a.y < b.y : false);
+}
+
 bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
     Float delta = M_PI / 180;
     for (int j = 0; j * delta < M_PI; j++) {
         std::vector<Coord> rotated_S = S;
         rotate(rotated_S, j * delta);
+        std::sort(rotated_S.begin(), rotated_S.end(), lt_by_x);
         BoundingBox bb = BoundingBox::from_vector(rotated_S);
         Real long_edge = std::max(bb.dx(), bb.dy());
-        std::sort(rotated_S.begin(), rotated_S.end(), [](Coord const &a, Coord const &b) {
-            return a.x < b.x;
-        });
         Kptree SL(r, rotated_S), SR(r, rotated_S);
         for (size_t i = 0; i < rotated_S.size(); i++)
             SR.insert(i);
@@ -34,6 +40,7 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
                 centers.clear();
                 centers.push_back(SL.center_avaliable());
                 centers.push_back(SR.center_avaliable());
+                rotate(centers, -j * delta);
                 return true;
             }
             if (i < rotated_S.size()) {
@@ -55,6 +62,7 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
     for (int j = 0; j * delta < M_PI; j++) {
         std::vector<Coord> rotated_S = S;
         rotate(rotated_S, j * delta);
+        std::sort(rotated_S.begin(), rotated_S.end(), lt_by_x);
         BoundingBox bb = BoundingBox::from_vector(rotated_S);
         Real long_edge = std::max(bb.dx(), bb.dy());
         if (long_edge > r * 3)
@@ -90,6 +98,7 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
                             centers.clear();
                             centers.push_back(SL.center_avaliable());
                             centers.push_back(SR.center_avaliable());
+                            rotate(centers, -j * delta);
                             return true;
                         }
                         if (j < Q1.size()) {
@@ -111,7 +120,8 @@ bool DC(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
 }
 
 PCenterResult p_center(int p, std::vector<Coord> const &S, Real eps) {
-    assert(p == 2);
+    if (p != 2)
+        throw std::invalid_argument("");
     if (S.empty()) {
         PCenterResult result;
         result.r = Real(0);
