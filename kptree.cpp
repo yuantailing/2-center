@@ -79,7 +79,7 @@ Coord Kptree::center_avaliable() const {
 #endif
 }
 
-IntersectionResult Kptree::intersection_arcs_with_outer_circles(bool only_self) const {
+IntersectionResult Kptree::intersection_arcs_with_outer_circles(bool) const {
     IntersectionResult result;
     return result;
 }
