@@ -6,11 +6,27 @@
 #include <QMouseEvent>
 #include <QDebug>
 #include "center.h"
+#include "kptree.h"
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
+    std::vector<Coord> A;
+    A.push_back(Coord(0, 0));
+    A.push_back(Coord(0, 0));
+    A.push_back(Coord(1.5, 1));
+    A.push_back(Coord(2.5, 1));
+    Kptree tree(1, A);
+    Coord coord = tree.intersection(A[0], A[1]);
+    qDebug() << coord.x << coord.y;
+    tree.insert(0);
+    tree.insert(2);
+    tree.insert(3);
+    tree.qdebug();
+    tree.insert(1);
+    tree.qdebug();
+    std::exit(1);
     ui->setupUi(this);
     qsrand(0);
     dragging = false;
