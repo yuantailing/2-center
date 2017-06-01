@@ -53,14 +53,15 @@ public:
     std::vector<Coord> const &S;
     std::vector<bool> flag;
 
-    inline std::size_t root() { return 1; }
-    inline std::size_t lchild(std::size_t x) { return x * 2; }
-    inline std::size_t rchild(std::size_t x) { return (x << 1) | 1; }
-    inline std::size_t parent(std::size_t x) { return x / 2; }
-    inline bool isleaf(std::size_t x) { return x >= n; }
+    inline static std::size_t root() { return 1; }
+    inline static std::size_t lchild(std::size_t x) { return x << 1; }
+    inline static std::size_t rchild(std::size_t x) { return (x << 1) | 1; }
+    inline static std::size_t parent(std::size_t x) { return x >> 1; }
+    inline static bool isleaf(std::size_t x, std::size_t n) { return x >= n; }
 
-    Coord intersection(Coord const &Si, Coord const &Sj);
-    void update(std::size_t cur);
+    static Coord intersection(Coord const &Si, Coord const &Sj, Real r, bool up);
+    void update(std::size_t cur, bool up);
+    void update_both(std::size_t cur) { update(cur, true); update(cur, false); }
     void qdebug() const { qDebug() << nodes.size(); for (KptreeNode const &node: nodes) node.qdebug(); }
 
     std::size_t n;

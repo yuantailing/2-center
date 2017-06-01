@@ -17,8 +17,9 @@ MainWindow::MainWindow(QWidget *parent) :
     A.push_back(Coord(0, 0));
     A.push_back(Coord(1.5, 1));
     A.push_back(Coord(2.5, 1));
-    Kptree tree(1, A);
-    Coord coord = tree.intersection(A[0], A[1]);
+    Real r = 1.0;
+    Kptree tree(r, A);
+    Coord coord = tree.intersection(A[0], A[1], r, true);
     qDebug() << coord.x << coord.y;
     tree.insert(0);
     tree.insert(2);

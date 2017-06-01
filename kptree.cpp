@@ -22,7 +22,10 @@ Kptree::Kptree(Real r, std::vector<Coord> const &S):
     while (n < S.size())
         n *= 2;
     nodes.resize(n * 2);
+    inves.resize(n * 2);
     for (KptreeNode &node: nodes)
+        node.narc = 0;
+    for (KptreeNode &node: inves)
         node.narc = 0;
 }
 
@@ -32,7 +35,8 @@ void Kptree::insert(std::size_t idx)
 {
     std::size_t cur = idx + n;
     nodes[cur].narc = 1;
-    update(cur);
+    inves[cur].narc = 1;
+    update_both(cur);
     flag[idx] = true;
 }
 
@@ -40,70 +44,9 @@ void Kptree::remove(std::size_t idx)
 {
     std::size_t cur = idx + n;
     nodes[cur].narc = 0;
-    update(cur);
+    inves[cur].narc = 0;
+    update_both(cur);
     flag[idx] = false;
-}
-
-void Kptree::update(std::size_t cur) {
-    if (!cur) return;
-    if (isleaf(cur)) {
-        nodes[cur].lx = nodes[cur].rx = cur - n;
-        nodes[cur].larc = nodes[cur].rarc = cur - n;
-    } else {
-        std::size_t l = lchild(cur);
-        std::size_t r = rchild(cur);
-        if (nodes[l].narc == 0) {
-            nodes[cur] = nodes[r];
-        } else if (nodes[r].narc == 0) {
-            nodes[cur] = nodes[l];
-        } else {
-            nodes[cur].lx = nodes[r].lx;
-            nodes[cur].rx = nodes[l].rx;
-            while (1) {
-                if (nodes[l].narc == 1 && nodes[r].narc == 1) {
-                    nodes[cur].narc = 2;
-                    nodes[cur].larc = nodes[r].larc;
-                    nodes[cur].rarc = nodes[l].larc;
-                    nodes[cur].ip = intersection(S[nodes[cur].rarc], S[nodes[cur].larc]);
-                    break;
-                } else if (nodes[l].narc == 1) {
-                    Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc]);
-                    // Coord R = intersection(S[nodes[l].larc], S[nodes[r].rarc]);
-                    if (L.x < nodes[r].ip.x) {
-                        r = rchild(r);
-                    } else { // if (R.x > nodes[r].ip.x) {
-                        r = lchild(r);
-                    }
-                } else if (nodes[r].narc == 1) {
-                    Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc]);
-                    // Coord R = intersection(S[nodes[l].rarc], S[nodes[r].larc]);
-                    if (L.x < nodes[l].ip.x) {
-                        l = rchild(l);
-                    } else { // if (R.x > nodes[l].ip.x) {
-                        l = lchild(l);
-                    }
-
-                } else {
-                    Coord LL = intersection(S[nodes[l].larc], S[nodes[r].larc]);
-                    Coord LR = intersection(S[nodes[l].larc], S[nodes[r].rarc]);
-                    Coord RL = intersection(S[nodes[l].rarc], S[nodes[r].larc]);
-                    // Coord RR = intersection(S[nodes[l].rarc], S[nodes[r].rarc]);
-                    if (LL.x < nodes[l].ip.x && LL.x < nodes[r].ip.x) {
-                        r = rchild(r);
-                    } else if (LR.x < nodes[l].ip.x && LR.x > nodes[r].ip.x) {
-                        l = rchild(l);
-                        r = lchild(r);
-                    } else if (RL.x > nodes[l].ip.x && RL.x < nodes[r].ip.x) {
-                        l = lchild(l);
-                        r = rchild(r);
-                    } else { // if (RR.x > nodes[l].ip.x && RR.x > nodes[r].ip.x) {
-                        l = lchild(l);
-                    }
-                }
-            }
-        }
-    }
-    update(parent(cur));
 }
 
 bool Kptree::has_intersection() const
@@ -175,7 +118,77 @@ IntersectionResult Kptree::intersection_arcs_with_outer_circles(bool) const
     return result;
 }
 
-Coord Kptree::intersection(Coord const &Si, Coord const &Sj) {
+void Kptree::update(std::size_t cur, bool up) {
+    std::vector<KptreeNode> &nodes(up ? this->nodes : this->inves);
+    while (cur) {
+        if (isleaf(cur, n)) {
+            nodes[cur].lx = nodes[cur].rx = cur - n;
+            nodes[cur].larc = nodes[cur].rarc = cur - n;
+        } else {
+            std::size_t l = lchild(cur);
+            std::size_t r = rchild(cur);
+            if (nodes[l].narc == 0) {
+                nodes[cur] = nodes[r];
+            } else if (nodes[r].narc == 0) {
+                nodes[cur] = nodes[l];
+            } else {
+                nodes[cur].lx = nodes[r].lx;
+                nodes[cur].rx = nodes[l].rx;
+                while (1) {
+                    if (nodes[l].narc == 1 && nodes[r].narc == 1) {
+                        nodes[cur].narc = 2;
+                        nodes[cur].larc = nodes[r].larc;
+                        nodes[cur].rarc = nodes[l].larc;
+                        nodes[cur].ip = intersection(S[nodes[cur].rarc], S[nodes[cur].larc], this->r, up);
+                        break;
+                    } else if (nodes[l].narc == 1) {
+                        Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                        // Coord R = intersection(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
+                        if (L.x < nodes[r].ip.x) {
+                            r = rchild(r);
+                        } else { // if (R.x > nodes[r].ip.x) {
+                            r = lchild(r);
+                        }
+                    } else if (nodes[r].narc == 1) {
+                        Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                        // Coord R = intersection(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
+                        if (L.x < nodes[l].ip.x) {
+                            l = rchild(l);
+                        } else { // if (R.x > nodes[l].ip.x) {
+                            l = lchild(l);
+                        }
+
+                    } else {
+                        Coord LL = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                        Coord LR = intersection(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
+                        Coord RL = intersection(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
+                        // Coord RR = intersection(S[nodes[l].rarc], S[nodes[r].rarc], this->r, up);
+                        if (LL.x < nodes[l].ip.x && LL.x < nodes[r].ip.x) {
+                            r = rchild(r);
+                        } else if (LR.x < nodes[l].ip.x && LR.x > nodes[r].ip.x) {
+                            l = rchild(l);
+                            r = lchild(r);
+                        } else if (RL.x > nodes[l].ip.x && RL.x < nodes[r].ip.x) {
+                            l = lchild(l);
+                            r = rchild(r);
+                        } else { // if (RR.x > nodes[l].ip.x && RR.x > nodes[r].ip.x) {
+                            l = lchild(l);
+                        }
+                    }
+                }
+            }
+        }
+        cur = parent(cur);
+    }
+}
+
+Coord Kptree::intersection(Coord const &Si, Coord const &Sj, Real r, bool up) {
+    if (!up) {
+        Coord Si2(Si.x, -Si.y);
+        Coord Sj2(Sj.x, -Sj.y);
+        Coord res = intersection(Si2, Sj2, r, true);
+        return Coord(res.x, -res.y);
+    }
     Real x = Si.x + r;
     Real dy2 = r * r - (Sj.x - x) * (Sj.x - x);
     if (dy2 <= 0) {
