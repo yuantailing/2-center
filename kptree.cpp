@@ -134,45 +134,49 @@ void Kptree::update(std::size_t cur, bool up) {
             } else {
                 nodes[cur].lx = nodes[r].lx;
                 nodes[cur].rx = nodes[l].rx;
-                while (1) {
-                    if (nodes[l].narc == 1 && nodes[r].narc == 1) {
-                        nodes[cur].narc = 2;
-                        nodes[cur].larc = nodes[r].larc;
-                        nodes[cur].rarc = nodes[l].larc;
-                        nodes[cur].ip = intersection(S[nodes[cur].rarc], S[nodes[cur].larc], this->r, up);
-                        break;
-                    } else if (nodes[l].narc == 1) {
-                        Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
-                        // Coord R = intersection(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
-                        if (L.x < nodes[r].ip.x) {
-                            r = rchild(r);
-                        } else { // if (R.x > nodes[r].ip.x) {
-                            r = lchild(r);
-                        }
-                    } else if (nodes[r].narc == 1) {
-                        Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
-                        // Coord R = intersection(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
-                        if (L.x < nodes[l].ip.x) {
-                            l = rchild(l);
-                        } else { // if (R.x > nodes[l].ip.x) {
-                            l = lchild(l);
-                        }
+                if (S[nodes[cur].lx].x - r > S[nodes[cur].rx].x + r) {
+                    nodes[cur].narc = 0;
+                } else {
+                    while (1) {
+                        if (nodes[l].narc == 1 && nodes[r].narc == 1) {
+                            nodes[cur].narc = 2;
+                            nodes[cur].larc = nodes[r].larc;
+                            nodes[cur].rarc = nodes[l].larc;
+                            nodes[cur].ip = intersection(S[nodes[cur].rarc], S[nodes[cur].larc], this->r, up);
+                            break;
+                        } else if (nodes[l].narc == 1) {
+                            Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                            // Coord R = intersection(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
+                            if (L.x < nodes[r].ip.x) {
+                                r = rchild(r);
+                            } else { // if (R.x > nodes[r].ip.x) {
+                                r = lchild(r);
+                            }
+                        } else if (nodes[r].narc == 1) {
+                            Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                            // Coord R = intersection(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
+                            if (L.x < nodes[l].ip.x) {
+                                l = rchild(l);
+                            } else { // if (R.x > nodes[l].ip.x) {
+                                l = lchild(l);
+                            }
 
-                    } else {
-                        Coord LL = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
-                        Coord LR = intersection(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
-                        Coord RL = intersection(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
-                        // Coord RR = intersection(S[nodes[l].rarc], S[nodes[r].rarc], this->r, up);
-                        if (LL.x < nodes[l].ip.x && LL.x < nodes[r].ip.x) {
-                            r = rchild(r);
-                        } else if (LR.x < nodes[l].ip.x && LR.x > nodes[r].ip.x) {
-                            l = rchild(l);
-                            r = lchild(r);
-                        } else if (RL.x > nodes[l].ip.x && RL.x < nodes[r].ip.x) {
-                            l = lchild(l);
-                            r = rchild(r);
-                        } else { // if (RR.x > nodes[l].ip.x && RR.x > nodes[r].ip.x) {
-                            l = lchild(l);
+                        } else {
+                            Coord LL = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                            Coord LR = intersection(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
+                            Coord RL = intersection(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
+                            // Coord RR = intersection(S[nodes[l].rarc], S[nodes[r].rarc], this->r, up);
+                            if (LL.x < nodes[l].ip.x && LL.x < nodes[r].ip.x) {
+                                r = rchild(r);
+                            } else if (LR.x < nodes[l].ip.x && LR.x > nodes[r].ip.x) {
+                                l = rchild(l);
+                                r = lchild(r);
+                            } else if (RL.x > nodes[l].ip.x && RL.x < nodes[r].ip.x) {
+                                l = lchild(l);
+                                r = rchild(r);
+                            } else { // if (RR.x > nodes[l].ip.x && RR.x > nodes[r].ip.x) {
+                                l = lchild(l);
+                            }
                         }
                     }
                 }
