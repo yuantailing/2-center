@@ -11,7 +11,7 @@
 #endif
 
 // S内所有点绕o顺时针旋转theta弧度
-void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
+static void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
     Float c = std::cos(theta);
     Float s = std::sin(theta);
     for (Coord &coord: S) {

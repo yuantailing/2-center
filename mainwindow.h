@@ -26,6 +26,7 @@ protected:
 
 private:
     void recalculate();
+    void test();
 
 private:
     Ui::MainWindow *ui;

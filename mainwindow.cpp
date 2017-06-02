@@ -12,28 +12,13 @@ MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow)
 {
-    std::vector<Coord> A;
-    A.push_back(Coord(0, 0));
-    A.push_back(Coord(0, 0));
-    A.push_back(Coord(1.5, 1));
-    A.push_back(Coord(2.5, 1));
-    Real r = 1.0;
-    Kptree tree(r, A);
-    Coord coord = tree.intersection(A[0], A[1], r, true);
-    qDebug() << coord.x << coord.y;
-    tree.insert(0);
-    tree.insert(2);
-    tree.insert(3);
-    tree.qdebug();
-    tree.insert(1);
-    tree.qdebug();
-    std::exit(1);
+    test();
     ui->setupUi(this);
     qsrand(0);
     dragging = false;
     topleft = QPointF(-266.67, 200);
     zoom = 1.5;
-    for (int i = 0; i < 20; i++) {
+    for (int i = 0; i < 4; i++) {
         qreal x = (qreal)qrand() / RAND_MAX * 200.0 - 100.0;
         qreal y = (qreal)qrand() / RAND_MAX * 200.0 - 100.0;
         S.push_back(QPointF(x, y));
@@ -145,4 +130,53 @@ void MainWindow::recalculate() {
     for (Coord p: result.centers) {
         centers.push_back(QPointF((qreal)p.x, (qreal)p.y));
     }
+}
+
+static void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
+    Float c = std::cos(theta);
+    Float s = std::sin(theta);
+    for (Coord &coord: S) {
+        Coord d = coord - o;
+        coord = o + Coord(d.x * c - d.y * s, d.x * s + d.y * c);
+    }
+}
+
+static bool lt_by_x(Coord const &a, Coord const &b) {
+    return a.x < b.x ? true : (a.x == b.x ? a.y < b.y : false);
+}
+
+void MainWindow::test() {
+
+    qsrand(0);
+    /*
+    std::vector<Coord> A;
+    A.push_back(Coord(0, 0));
+    A.push_back(Coord(0, 1));
+    A.push_back(Coord(0, 2));
+    A.push_back(Coord(1, 1));
+    A.push_back(Coord(1, 2));
+    A.push_back(Coord(1, 3));
+    for (Real r = 0; r < 3; r += 0.101) {
+        //rotate(A, 0.1);
+        sort(A.begin(), A.end(), lt_by_x);
+        Kptree tree(r, A);
+        for (std::size_t i = 0; i < A.size(); i+=2)
+            tree.insert(i);
+        // tree.qdebug();
+        // qDebug() << tree.has_intersection();
+        tree.has_intersection();
+    }
+    */
+    std::vector<Coord> A;
+    A.push_back(Coord(-35 , 0));
+    A.push_back(Coord(-34 , -40));
+    A.push_back(Coord(-22 , -32));
+    A.push_back(Coord(-10 , -5));
+    Real r = 18;
+    sort(A.begin(), A.end(), lt_by_x);
+    Kptree tree(r, A);
+    for (std::size_t i = 0; i < 4; i++) {
+        tree.insert(i);
+    }
+    tree.has_intersection();
 }

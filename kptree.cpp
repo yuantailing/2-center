@@ -1,6 +1,7 @@
 #include "kptree.h"
 #include <cmath>
 #include <iostream>
+#include <functional>
 #include <stdexcept>
 #include <stack>
 using namespace std;
@@ -23,10 +24,14 @@ Kptree::Kptree(Real r, std::vector<Coord> const &S):
         n *= 2;
     nodes.resize(n * 2);
     inves.resize(n * 2);
-    for (KptreeNode &node: nodes)
+    for (KptreeNode &node: nodes) {
         node.narc = 0;
-    for (KptreeNode &node: inves)
+        node.jump = 0;
+    }
+    for (KptreeNode &node: inves) {
         node.narc = 0;
+        node.jump = 0;
+    }
 }
 
 Kptree::~Kptree() { }
@@ -49,21 +54,88 @@ void Kptree::remove(std::size_t idx)
     flag[idx] = false;
 }
 
-bool Kptree::has_intersection() const
-{
-    try
-    {
-        center_avaliable();
+bool Kptree::has_intersection_kp() const {
+    if (nodes[root()].narc == 0)
+        return true;
+    if (S[nodes[root()].lx].x - r > S[nodes[root()].rx].x + r)
+        return false;
+    std::size_t cur = root(); // cursor in K+(P)
+    Real lmost = S[inves[root()].lx].x - this->r, rmost = S[inves[root()].rx].x + this->r;
+    while (!isleaf(cur, n)) {
+        if (nodes[cur].jump != 0) {
+            cur = nodes[cur].jump == 1 ? lchild(cur) : rchild(cur);
+            continue;
+        }
+        Coord search_point = nodes[cur].ip;
+        std::size_t invcur = root(); // cursor in K-(P)
+        while (!isleaf(invcur, n)) {
+            if (inves[invcur].jump != 0) {
+                invcur = inves[invcur].jump == 1 ? lchild(invcur) : rchild(invcur);
+            } else if (search_point.x < inves[invcur].ip.x) {
+                invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
+            } else {
+                invcur = inves[invcur].arc_swapped ? rchild(invcur) : lchild(invcur);
+            }
+        }
+        auto in_brdown = [](Coord const &o, Real r, Coord const &p) { // P是否在Br-(o)内
+            if (r * r >= (p - o).norm2())
+                return true;
+            return o.x - r <= p.x && p.x <= o.x + r && p.y <= o.y;
+        };
+        auto br_intersect = [&](Coord const &up, Coord const &down, Real r, Coord x, bool left) { //
+            auto res = brup_n_brdown(up, down, r);
+            if (std::get<0>(res) == false)
+                return false;
+            return br_toleft(up, std::get<1>(res), x, left, true) || br_toleft(up, std::get<2>(res), x, left, true);
+        };
+        if (in_brdown(S[inves[invcur].larc], this->r, search_point)) {
+            return true;
+        } else if (br_intersect(S[nodes[cur].larc], S[inves[invcur].larc], this->r, search_point, true)) {
+            rmost = std::min(rmost, nodes[cur].ip.x);
+            cur = nodes[cur].arc_swapped ? lchild(cur) : rchild(cur);
+        } else if (br_intersect(S[nodes[cur].rarc], S[inves[invcur].larc], this->r, search_point, false)) {
+            lmost = std::max(lmost, nodes[cur].ip.x);
+            cur = nodes[cur].arc_swapped ? rchild(cur) : lchild(cur);
+        } else {
+            return false;
+        }
     }
-    catch (std::logic_error const &e)
-    {
+    return false;
+    throw std::invalid_argument("");
+}
+
+bool Kptree::has_intersection_force() const {
+    try {
+        center_avaliable_force();
+    } catch (std::logic_error const &e) {
         return false;
     }
     return true;
 }
 
-Coord Kptree::center_avaliable() const
-{
+bool Kptree::has_intersection() const {
+    return has_intersection_kp();
+    bool res_kp = has_intersection_kp();
+    bool res_force = has_intersection_force();
+    if (res_kp == true && res_force == false) {
+        qDebug() << res_kp << res_force;
+        int cnt = 0;
+        for (std::size_t i = n; i < n + n; i++) {
+            if (nodes[i].narc == 1)
+                cnt++;
+        }
+        qdebug();
+        qDebug() << "r =" << r;
+        std::exit(1);
+    }
+    return has_intersection_kp();
+}
+
+Coord Kptree::center_avaliable_kp() const {
+    return Coord(0, 0);
+}
+
+Coord Kptree::center_avaliable_force() const {
 #if 0
     IntersectionResult arcs = intersection_arcs_with_outer_circles(true);
     if (arcs.arcs.empty())
@@ -72,8 +144,10 @@ Coord Kptree::center_avaliable() const
         return arcs.arcs.front().o + arcs.arcs.front().oa;
 #else
     // 在未实现intersection_arcs_with_outer_circles时的替代方案
+    bool no_point = true;
     for (std::size_t i = 0; i < S.size(); i++) {
         if (!flag[i]) continue;
+        no_point = false;
         Coord o(S[i]);
         Coord a(Real(0), Real(0)), b(Real(0), Real(0));
         bool is_circle = true;
@@ -82,7 +156,7 @@ Coord Kptree::center_avaliable() const
             if (!flag[j] || j == i) continue;
             Coord delta(S[j] - S[i]);
             Real delta_norm = delta.norm();
-            Coord unit = delta / delta_norm;
+            Coord unit = delta_norm ? delta / delta_norm : Coord(0, 1);
             unit = unit / unit.norm();
             Coord line(-unit.y, unit.x);
             Real line_norm2 = r * r - delta_norm * delta_norm / 4;
@@ -108,8 +182,15 @@ Coord Kptree::center_avaliable() const
             return o;
         return a;
     }
+    if (no_point)
+        return Coord(Real(0), Real(0));
     throw std::invalid_argument("");
 #endif
+}
+
+Coord Kptree::center_avaliable() const
+{
+    return center_avaliable_kp();
 }
 
 IntersectionResult Kptree::intersection_arcs_with_outer_circles(bool) const
@@ -124,58 +205,93 @@ void Kptree::update(std::size_t cur, bool up) {
         if (isleaf(cur, n)) {
             nodes[cur].lx = nodes[cur].rx = cur - n;
             nodes[cur].larc = nodes[cur].rarc = cur - n;
+            Coord const &o(S[cur - n]);
+            nodes[cur].ip = Coord(o.x, up ? o.y - this->r : o.y + this->r);
         } else {
             std::size_t l = lchild(cur);
             std::size_t r = rchild(cur);
             if (nodes[l].narc == 0) {
-                nodes[cur] = nodes[r];
+                nodes[cur].narc = nodes[r].narc;
+                nodes[cur].lx = nodes[r].lx;
+                nodes[cur].rx = nodes[r].rx;
+                nodes[cur].jump = 2;
             } else if (nodes[r].narc == 0) {
-                nodes[cur] = nodes[l];
+                nodes[cur].narc = nodes[l].narc;
+                nodes[cur].lx = nodes[l].lx;
+                nodes[cur].rx = nodes[l].rx;
+                nodes[cur].jump = 1;
             } else {
                 nodes[cur].lx = nodes[r].lx;
                 nodes[cur].rx = nodes[l].rx;
-                if (S[nodes[cur].lx].x - r > S[nodes[cur].rx].x + r) {
-                    nodes[cur].narc = 0;
+                nodes[cur].jump = 0;
+                if (S[nodes[cur].lx].x - this->r > S[nodes[cur].rx].x + this->r) {
+                    nodes[cur].narc = 2;
                 } else {
                     while (1) {
-                        if (nodes[l].narc == 1 && nodes[r].narc == 1) {
+                        if (nodes[l].jump != 0) {
+                            l = nodes[l].jump == 1 ? lchild(l) : rchild(l);
+                        } else if (nodes[r].jump != 0) {
+                            r = nodes[r].jump == 1 ? lchild(r) : rchild(r);
+                        } else if (nodes[l].narc == 1 && nodes[r].narc == 1) {
                             nodes[cur].narc = 2;
-                            nodes[cur].larc = nodes[r].larc;
-                            nodes[cur].rarc = nodes[l].larc;
-                            nodes[cur].ip = intersection(S[nodes[cur].rarc], S[nodes[cur].larc], this->r, up);
+                            std::size_t a = nodes[l].larc;
+                            std::size_t b = nodes[r].larc;
+                            nodes[cur].ip = br_n_br_same(S[a], S[b], this->r, up);
+                            if (nodes[cur].ip.x < S[a].x && nodes[cur].ip.x < S[b].x) {
+                                if (S[a].y < S[b].y) {
+                                    nodes[cur].larc = a;
+                                    nodes[cur].rarc = b;
+                                } else {
+                                    nodes[cur].larc = b;
+                                    nodes[cur].rarc = a;
+                                }
+                                if (!up) std::swap(nodes[cur].larc, nodes[cur].rarc);
+                            } else if (nodes[cur].ip.x > S[a].x && nodes[cur].ip.x > S[b].x) {
+                                if (S[a].y < S[b].y) {
+                                    nodes[cur].larc = b;
+                                    nodes[cur].rarc = a;
+                                } else {
+                                    nodes[cur].larc = a;
+                                    nodes[cur].rarc = b;
+                                }
+                                if (!up) std::swap(nodes[cur].larc, nodes[cur].rarc);
+                            } else {
+                                nodes[cur].larc = nodes[r].larc;
+                                nodes[cur].rarc = nodes[l].larc;
+                            }
+                            nodes[cur].arc_swapped = nodes[cur].larc != nodes[r].larc;
                             break;
                         } else if (nodes[l].narc == 1) {
-                            Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
-                            // Coord R = intersection(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
+                            Coord L = br_n_br_same(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                            // Coord R = br_n_br_same(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
                             if (L.x < nodes[r].ip.x) {
-                                r = rchild(r);
+                                r = nodes[r].arc_swapped ? lchild(r) : rchild(r);
                             } else { // if (R.x > nodes[r].ip.x) {
-                                r = lchild(r);
+                                r = nodes[r].arc_swapped ? rchild(r) : lchild(r);
                             }
                         } else if (nodes[r].narc == 1) {
-                            Coord L = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
-                            // Coord R = intersection(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
+                            Coord L = br_n_br_same(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                            // Coord R = br_n_br_same(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
                             if (L.x < nodes[l].ip.x) {
-                                l = rchild(l);
+                                l = nodes[l].arc_swapped ? lchild(l) : rchild(l);
                             } else { // if (R.x > nodes[l].ip.x) {
-                                l = lchild(l);
+                                l = nodes[l].arc_swapped ? rchild(l) : lchild(l);
                             }
-
                         } else {
-                            Coord LL = intersection(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
-                            Coord LR = intersection(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
-                            Coord RL = intersection(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
-                            // Coord RR = intersection(S[nodes[l].rarc], S[nodes[r].rarc], this->r, up);
-                            if (LL.x < nodes[l].ip.x && LL.x < nodes[r].ip.x) {
-                                r = rchild(r);
-                            } else if (LR.x < nodes[l].ip.x && LR.x > nodes[r].ip.x) {
-                                l = rchild(l);
-                                r = lchild(r);
-                            } else if (RL.x > nodes[l].ip.x && RL.x < nodes[r].ip.x) {
-                                l = lchild(l);
-                                r = rchild(r);
+                            Coord LL = br_n_br_same(S[nodes[l].larc], S[nodes[r].larc], this->r, up);
+                            Coord LR = br_n_br_same(S[nodes[l].larc], S[nodes[r].rarc], this->r, up);
+                            Coord RL = br_n_br_same(S[nodes[l].rarc], S[nodes[r].larc], this->r, up);
+                            // Coord RR = br_n_br_same(S[nodes[l].rarc], S[nodes[r].rarc], this->r, up);
+                            if (br_toleft(S[nodes[l].larc], LL, nodes[l].ip, true, up) && br_toleft(S[nodes[r].larc], LL, nodes[r].ip, true, up)) { // (LL.x < nodes[l].ip.x && LL.x < nodes[r].ip.x) {
+                                r = nodes[r].arc_swapped ? lchild(r) : rchild(r);
+                            } else if (br_toleft(S[nodes[l].larc], LR, nodes[l].ip, true, up) && br_toleft(S[nodes[r].rarc], LR, nodes[r].ip, false, up)) { // (LR.x < nodes[l].ip.x && LR.x > nodes[r].ip.x) {
+                                l = nodes[l].arc_swapped ? lchild(l) : rchild(l);
+                                r = nodes[r].arc_swapped ? rchild(r) : lchild(r);
+                            } else if (br_toleft(S[nodes[l].rarc], RL, nodes[l].ip, false, up) && br_toleft(S[nodes[r].larc], RL, nodes[r].ip, true, up)) { // (RL.x > nodes[l].ip.x && RL.x < nodes[r].ip.x) {
+                                l = nodes[l].arc_swapped ? rchild(l) : lchild(l);
+                                r = nodes[r].arc_swapped ? lchild(r) : rchild(r);
                             } else { // if (RR.x > nodes[l].ip.x && RR.x > nodes[r].ip.x) {
-                                l = lchild(l);
+                                l = nodes[l].arc_swapped ? rchild(l) : lchild(l);
                             }
                         }
                     }
@@ -186,11 +302,13 @@ void Kptree::update(std::size_t cur, bool up) {
     }
 }
 
-Coord Kptree::intersection(Coord const &Si, Coord const &Sj, Real r, bool up) {
+Coord Kptree::br_n_br_same(Coord const &Si, Coord const &Sj, Real r, bool up) { // 如果不相交，返回极限；如果相交，返回交点；如果重合，返回最左下的点
+    if (Si.x > Sj.x)
+        return br_n_br_same(Sj, Si, r, up);
     if (!up) {
         Coord Si2(Si.x, -Si.y);
         Coord Sj2(Sj.x, -Sj.y);
-        Coord res = intersection(Si2, Sj2, r, true);
+        Coord res = br_n_br_same(Si2, Sj2, r, true);
         return Coord(res.x, -res.y);
     }
     Real x = Si.x + r;
@@ -210,7 +328,7 @@ Coord Kptree::intersection(Coord const &Si, Coord const &Sj, Real r, bool up) {
     }
     Coord delta(Sj - Si);
     Real delta_norm = delta.norm();
-    Coord unit = delta / delta_norm;
+    Coord unit = delta_norm ? delta / delta_norm : Coord(0, 1);
     unit = unit / unit.norm();
     Coord line(-unit.y, unit.x);
     Real line_norm2 = r * r - delta_norm * delta_norm / 4;
@@ -219,4 +337,45 @@ Coord Kptree::intersection(Coord const &Si, Coord const &Sj, Real r, bool up) {
     }
     line = line * std::sqrt(line_norm2);
     return Si + delta / 2 - line;
+}
+
+std::tuple<bool, Coord, Coord> Kptree::brup_n_brdown(Coord const &up, Coord const &down, Real r) { // 若相交，返回2个交点。若x重合，返回左上右下或右上左下；若xy重合，返回左右两点。
+    if (up.x > down.x) {
+        Coord u(-up.x, up.y);
+        Coord d(-down.x, down.y);
+        auto result = brup_n_brdown(u, d, r);
+        return std::make_tuple(std::get<0>(result), Coord(-std::get<2>(result).x, std::get<2>(result).y), Coord(-std::get<1>(result).x, std::get<1>(result).y));
+    }
+    if (down.x - up.x - r > r) {
+        return std::make_tuple(false, Coord(0, 0), Coord(0, 0));
+    }
+    Real delta_y2 = r * r - (down.x - up.x - r) * (down.x - up.x - r);
+    if (up.y - down.y < 0 || (up.y - down.y) * (up.y - down.y) <= delta_y2) {
+        Real delta_y = std::sqrt(delta_y2);
+        return std::make_tuple(true, Coord(down.x - r, up.y - delta_y), Coord(up.x + r, down.y + delta_y));
+    }
+    Coord delta(down - up);
+    Real delta_norm = delta.norm();
+    Coord unit = delta_norm ? delta / delta_norm : Coord(0, 1);
+    unit = unit / unit.norm();
+    Coord line(-unit.y, unit.x);
+    Real line_norm2 = r * r - delta_norm * delta_norm / 4;
+    if (line_norm2 < 0) {
+        return std::make_tuple(false, Coord(0, 0), Coord(0, 0));
+    }
+    line = line * std::sqrt(line_norm2);
+    return std::make_tuple(true, up + delta / 2 - line, up + delta / 2 + line);
+}
+
+bool Kptree::br_toleft(Coord const &o, Coord const &a, Coord const &b, bool left, bool up) { // Br+(O)上的两点a、b，判断a是否在b的左边（或重合）
+    if (!up) {
+        return br_toleft(Coord(o.x, -o.y), Coord(a.x, -a.y), Coord(b.x, -b.y), left, true);
+    }
+    if (left) {
+        if (a.y > o.y) return (a.y >= b.y) == (a.x < o.x);
+        return a.x <= b.x;
+    } else {
+        if (a.y > o.y) return (a.y >= b.y) == (a.x > o.x);
+        return a.x >= b.x;
+    }
 }

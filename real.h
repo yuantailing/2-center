@@ -16,12 +16,13 @@ public:
     Coord &operator =(Coord const &) = default;
     Real x;
     Real y;
-    Real norm() const { return std::sqrt(x * x + y * y); }
-    Coord operator +(Coord const &o) const { return Coord(x + o.x, y + o.y); }
-    Coord operator -(Coord const &o) const { return Coord(x - o.x, y - o.y); }
-    Coord operator *(Real r) const { return Coord(x * r, y * r); }
-    Coord operator /(Real r) const { return Coord(x / r, y / r); }
-    bool operator ==(Coord const &o) const { return x == o.x && y == o.y; }
+    inline Real norm2() const { return x * x + y * y; }
+    inline Real norm() const { return std::sqrt(norm2()); }
+    inline Coord operator +(Coord const &o) const { return Coord(x + o.x, y + o.y); }
+    inline Coord operator -(Coord const &o) const { return Coord(x - o.x, y - o.y); }
+    inline Coord operator *(Real r) const { return Coord(x * r, y * r); }
+    inline Coord operator /(Real r) const { return Coord(x / r, y / r); }
+    inline bool operator ==(Coord const &o) const { return x == o.x && y == o.y; }
 };
 
 // 包围盒
