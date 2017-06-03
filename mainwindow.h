@@ -24,6 +24,9 @@ protected:
     void mouseReleaseEvent(QMouseEvent *event);
     void wheelEvent(QWheelEvent *event);
 
+private slots:
+    void on_pushButtonExportPoints_clicked();
+
 private:
     void recalculate();
     void test();

@@ -119,6 +119,13 @@ void MainWindow::wheelEvent(QWheelEvent *event) {
     QMainWindow::wheelEvent(event);
 }
 
+void MainWindow::on_pushButtonExportPoints_clicked() {
+    qDebug() << "n =" << S.size();
+    for (QPointF const &x: S) {
+        qDebug() << x.x() << x.y();
+    }
+}
+
 void MainWindow::recalculate() {
     std::vector<Coord> v;
     for (QPointF p: S) {

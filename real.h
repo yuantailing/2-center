@@ -4,9 +4,9 @@
 #include <cmath>
 #include <vector>
 
-typedef double Float; // 用于表示角度
+typedef float Float; // 用于表示角度
 
-typedef double Real; // 用于表示坐标
+typedef float Real; // 用于表示坐标
 
 class Coord {
 public:

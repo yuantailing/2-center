@@ -86,27 +86,78 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
                 std::sort(Q1.begin(), Q1.end(), [&](std::size_t a, std::size_t b) {
                     return to_left(z, rotated_S[b], rotated_S[a]);
                 });
-                for (std::size_t i = 0; i <= Q0.size(); i++) {
+                struct Task {
+                    int up, down, left, right;
+                    Task(int up, int down, int left, int right):
+                        up(up), down(down), left(left), right(right) { }
+                };
+                std::vector<Task> tasks;
+                std::vector<Task> newTasks;
+                tasks.push_back(Task(0, Q0.size(), 0, Q1.size()));
+
+                while (!tasks.empty()) {
                     Kptree SL(r, rotated_S), SR(r, rotated_S);
-                    for (std::size_t j = 0; j < i; j++)
-                        SL.insert(Q0[j]);
-                    for (std::size_t j = i; j < Q0.size(); j++)
-                        SR.insert(Q0[j]);
-                    for (int idx: Q1)
-                        SR.insert(idx);
-                    for (std::size_t j = 0; j <= Q1.size(); j++) {
-                        if (SL.has_intersection() && SR.has_intersection()) {
-                            centers.clear();
-                            centers.push_back(SL.center_avaliable());
-                            centers.push_back(SR.center_avaliable());
-                            rotate(centers, -j0 * delta);
-                            return true;
+                    int h_pos = (tasks[0].left + tasks[0].right) / 2;
+                    int v_pos = 0;
+                    for (std::size_t i = 0; i < (size_t)v_pos; i++)
+                        SL.insert(Q0[i]);
+                    for (std::size_t i = v_pos; i < Q0.size(); i++)
+                        SR.insert(Q0[i]);
+                    for (std::size_t i = 0; i < (size_t)h_pos; i++)
+                        SL.insert(Q1[i]);
+                    for (std::size_t i = h_pos; i < Q1.size(); i++)
+                        SR.insert(Q1[i]);
+                    newTasks.clear();
+                    for (Task const &task: tasks) {
+                        if (task.up > task.down || task.left > task.right)
+                            continue;
+                        int mid = (task.left + task.right) / 2;
+                        while (h_pos > mid) {
+                            h_pos--;
+                            SL.remove(Q1[h_pos]);
+                            SR.insert(Q1[h_pos]);
                         }
-                        if (j < Q1.size()) {
-                            SL.insert(Q1[j]);
-                            SR.remove(Q1[j]);
+                        while (v_pos < task.up) {
+                            SL.insert(Q0[v_pos]);
+                            SR.remove(Q0[v_pos]);
+                            v_pos++;
                         }
+                        int YNNY = 0;
+                        while (v_pos < task.down) {
+                            bool Y0 = SL.has_intersection();
+                            bool Y1 = SR.has_intersection();
+                            if (Y0 && Y1) {
+                                centers.clear();
+                                centers.push_back(SL.center_avaliable());
+                                centers.push_back(SR.center_avaliable());
+                                rotate(centers, -j0 * delta);
+                                return true;
+                            }
+                            if (!Y0 && !Y1) {
+                                newTasks.push_back(Task(task.up, v_pos - 1, mid + 1, task.right));
+                                newTasks.push_back(Task(v_pos + 1, task.down, task.left, mid - 1));
+                                YNNY = 0;
+                                break;
+                            }
+                            if (Y0 && !Y1)
+                                YNNY = 1;
+                            else
+                                YNNY = 2;
+                            SL.insert(Q0[v_pos]);
+                            SR.remove(Q0[v_pos]);
+                            v_pos++;
+                        }
+                        while (v_pos < task.down) {
+                            SL.insert(Q0[v_pos]);
+                            SR.remove(Q0[v_pos]);
+                            v_pos++;
+                        }
+                        if (YNNY == 1)
+                            newTasks.push_back(Task(task.up, task.down, mid + 1, task.right));
+                        else if (YNNY == 2)
+                            newTasks.push_back(Task(task.up, task.down, task.left, mid - 1));
                     }
+                    tasks = newTasks;
                 }
             }
         }
@@ -114,9 +165,39 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
     return false;
 }
 
+bool DC_bf(Real r, std::vector<Coord> const &S0, std::vector<Coord> &centers) {
+    std::vector<Coord> S(S0);
+    std::sort(S.begin(), S.end(), lt_by_x);
+    auto circle_n_circle = [](Coord const &a, Coord const &b, Real r, bool &flag, Coord &p1, Coord &p2) {
+        Coord delta = (b - a) / 2;
+        Real delta_norm2 = delta.norm2();
+        Real r2 = r * r;
+        Real line_norm2 = r2 - delta_norm2;
+        if (line_norm2 < 0 || delta_norm2 == 0) { // 重合情况可以视为只有一个圆，不需要加判断点，与无交相同
+            flag = false;
+            return;
+        }
+        Coord unit = delta / std::sqrt(delta_norm2);
+        Coord line = Coord(-unit.y, unit.x) * std::sqrt(line_norm2);
+        p1 = a + delta + line;
+        p2 = a + delta - line;
+        flag = true;
+    };
+    for (std::size_t i = 1; i < S.size(); i++) {
+        bool flag;
+        Coord p1, p2;
+        circle_n_circle(S[0], S[i], r, flag, p1, p2);
+        if (flag) {
+
+        }
+    }
+    return false;
+}
+
 bool DC(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
+    // return DC_bf(r, S, centers);
     if (DC_separated(r, S, centers)) return true;
-    // if (DC_close(r, S, centers)) return true;
+    if (DC_close(r, S, centers)) return true;
     return false;
 }
 
