@@ -4,7 +4,6 @@
 #include <functional>
 #include <stdexcept>
 #include <stack>
-using namespace std;
 
 Kptree::Kptree(Real r, std::vector<Coord> const &S):
     r(r),
@@ -264,6 +263,7 @@ std::pair<bool, Coord> Kptree::compute_center() const {
         return std::make_pair(false, Coord(0, 0));
     std::size_t cur = root(); // cursor in K+(P)
     Real lmost = S[nodes[root()].lx].x - this->r, rmost = S[nodes[root()].rx].x + this->r;
+    auto between_most = [&](Real x) { return lmost <= x && x <= rmost; };
     while (!isleaf(cur, n)) {
         if (nodes[cur].jump != 0) {
             cur = nodes[cur].jump == 1 ? lchild(cur) : rchild(cur);
@@ -298,7 +298,8 @@ std::pair<bool, Coord> Kptree::compute_center() const {
             //qDebug() << std::get<0>(res);
             if (std::get<0>(res) == false)
                 return false;
-            return br_toleft(up, std::get<1>(res), x, left, true) || br_toleft(up, std::get<2>(res), x, left, true);
+            return (between_most(std::get<1>(res).x) && br_toleft(up, std::get<1>(res), x, left, true)) ||
+                    (between_most(std::get<2>(res).x) && br_toleft(up, std::get<2>(res), x, left, true));
         };
         //qDebug() << nodes[cur].larc << inves[invcur].larc;
         if (in_brdown(S[inves[invcur].larc], this->r, search_point)) {
@@ -328,7 +329,8 @@ std::pair<bool, Coord> Kptree::compute_center() const {
             auto res = brup_n_brdown(up, down, r);
             if (std::get<0>(res) == false)
                 return false;
-            return br_toleft(down, std::get<1>(res), x, left, false) || br_toleft(down, std::get<2>(res), x, left, false);
+            return (between_most(std::get<1>(res).x) && br_toleft(down, std::get<1>(res), x, left, false)) ||
+                    (between_most(std::get<2>(res).x) && br_toleft(down, std::get<2>(res), x, left, false));
         };
         Coord const &search_point(inves[invcur].ip);
         if (search_point.x < lmost) {

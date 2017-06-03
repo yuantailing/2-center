@@ -26,7 +26,7 @@ static bool lt_by_x(Coord const &a, Coord const &b) {
 }
 
 bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
-    Float delta = M_PI / 180;
+    Float delta = M_PI / 18;
     for (int j = 0; j * delta < M_PI; j++) {
         std::vector<Coord> rotated_S = S;
         rotate(rotated_S, j * delta);
@@ -60,9 +60,9 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
 
 bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
     Float delta = M_PI / 6;
-    for (int j = 0; j * delta < M_PI; j++) {
+    for (int j0 = 0; j0 * delta < M_PI; j0++) {
         std::vector<Coord> rotated_S = S;
-        rotate(rotated_S, j * delta);
+        rotate(rotated_S, j0 * delta);
         std::sort(rotated_S.begin(), rotated_S.end(), lt_by_x);
         BoundingBox bb = BoundingBox::from_vector(rotated_S);
         Real long_edge = std::max(bb.dx(), bb.dy());
@@ -99,7 +99,7 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
                             centers.clear();
                             centers.push_back(SL.center_avaliable());
                             centers.push_back(SR.center_avaliable());
-                            rotate(centers, -j * delta);
+                            rotate(centers, -j0 * delta);
                             return true;
                         }
                         if (j < Q1.size()) {
@@ -116,7 +116,7 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
 
 bool DC(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
     if (DC_separated(r, S, centers)) return true;
-    if (DC_close(r, S, centers)) return true;
+    // if (DC_close(r, S, centers)) return true;
     return false;
 }
 

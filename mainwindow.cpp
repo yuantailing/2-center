@@ -17,7 +17,7 @@ MainWindow::MainWindow(QWidget *parent) :
     ui->setupUi(this);
     qsrand(0);
     dragging = false;
-    topleft = QPointF(-266.67, 200);
+    topleft = QPointF(-266.67, 266.67);
     zoom = 1.5;
     for (int i = 0; i < 4; i++) {
         qreal x = (qreal)qrand() / RAND_MAX * 200.0 - 100.0;
@@ -25,7 +25,7 @@ MainWindow::MainWindow(QWidget *parent) :
         S.push_back(QPointF(x, y));
     }
     recalculate();
-    this->resize(800, 600);
+    this->resize(800, 800);
 }
 
 MainWindow::~MainWindow()
@@ -133,41 +133,12 @@ void MainWindow::recalculate() {
     }
 }
 
-static void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
-    Float c = std::cos(theta);
-    Float s = std::sin(theta);
-    for (Coord &coord: S) {
-        Coord d = coord - o;
-        coord = o + Coord(d.x * c - d.y * s, d.x * s + d.y * c);
-    }
-}
-
 static bool lt_by_x(Coord const &a, Coord const &b) {
     return a.x < b.x ? true : (a.x == b.x ? a.y < b.y : false);
 }
 
 void MainWindow::test() {
-
     qsrand(0);
-    /*
-    std::vector<Coord> A;
-    A.push_back(Coord(0, 0));
-    A.push_back(Coord(0, 1));
-    A.push_back(Coord(0, 2));
-    A.push_back(Coord(1, 1));
-    A.push_back(Coord(1, 2));
-    A.push_back(Coord(1, 3));
-    for (Real r = 0; r < 3; r += 0.101) {
-        //rotate(A, 0.1);
-        sort(A.begin(), A.end(), lt_by_x);
-        Kptree tree(r, A);
-        for (std::size_t i = 0; i < A.size(); i+=2)
-            tree.insert(i);
-        // tree.qdebug();
-        // qDebug() << tree.has_intersection();
-        tree.has_intersection();
-    }
-    */
     std::vector<Coord> A;
     A.push_back(Coord(-5.33667 , -2.66667));
     A.push_back(Coord(-2.00333 , 0.666667));
@@ -181,7 +152,4 @@ void MainWindow::test() {
         tree.insert(i);
     }
     tree.has_intersection();
-    std::default_random_engine e, f;
-    std::uniform_real_distribution<double> u(0, 1);
-    qDebug() << u(e) << u(f);
 }
