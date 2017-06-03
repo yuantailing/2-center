@@ -12,7 +12,7 @@ Kptree::Kptree(Real r, std::vector<Coord> const &S):
 {
     for (std::size_t i = 1; i < S.size(); i++) {
         if (S[i].x < S[i - 1].x)
-            throw std::invalid_argument("Kptree node must be sorted by x");
+            throw std::invalid_argument("Kptree point set must be sorted by x");
     }
     flag.resize(S.size());
     for (std::size_t i = 0; i < flag.size(); i++)
@@ -22,8 +22,8 @@ Kptree::Kptree(Real r, std::vector<Coord> const &S):
     n = 1;
     while (n < S.size())
         n *= 2;
-    nodes.resize(n * 2);
-    inves.resize(n * 2);
+    nodes.resize(n + S.size() + 1);
+    inves.resize(n + S.size() + 1);
     for (KptreeNode &node: nodes) {
         node.narc = 0;
         node.jump = 0;
@@ -55,53 +55,7 @@ void Kptree::remove(std::size_t idx)
 }
 
 bool Kptree::has_intersection_kp() const {
-    if (nodes[root()].narc == 0)
-        return true;
-    if (S[nodes[root()].lx].x - r > S[nodes[root()].rx].x + r)
-        return false;
-    std::size_t cur = root(); // cursor in K+(P)
-    Real lmost = S[inves[root()].lx].x - this->r, rmost = S[inves[root()].rx].x + this->r;
-    while (!isleaf(cur, n)) {
-        if (nodes[cur].jump != 0) {
-            cur = nodes[cur].jump == 1 ? lchild(cur) : rchild(cur);
-            continue;
-        }
-        Coord search_point = nodes[cur].ip;
-        std::size_t invcur = root(); // cursor in K-(P)
-        while (!isleaf(invcur, n)) {
-            if (inves[invcur].jump != 0) {
-                invcur = inves[invcur].jump == 1 ? lchild(invcur) : rchild(invcur);
-            } else if (search_point.x < inves[invcur].ip.x) {
-                invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
-            } else {
-                invcur = inves[invcur].arc_swapped ? rchild(invcur) : lchild(invcur);
-            }
-        }
-        auto in_brdown = [](Coord const &o, Real r, Coord const &p) { // P是否在Br-(o)内
-            if (r * r >= (p - o).norm2())
-                return true;
-            return o.x - r <= p.x && p.x <= o.x + r && p.y <= o.y;
-        };
-        auto br_intersect = [&](Coord const &up, Coord const &down, Real r, Coord x, bool left) { //
-            auto res = brup_n_brdown(up, down, r);
-            if (std::get<0>(res) == false)
-                return false;
-            return br_toleft(up, std::get<1>(res), x, left, true) || br_toleft(up, std::get<2>(res), x, left, true);
-        };
-        if (in_brdown(S[inves[invcur].larc], this->r, search_point)) {
-            return true;
-        } else if (br_intersect(S[nodes[cur].larc], S[inves[invcur].larc], this->r, search_point, true)) {
-            rmost = std::min(rmost, nodes[cur].ip.x);
-            cur = nodes[cur].arc_swapped ? lchild(cur) : rchild(cur);
-        } else if (br_intersect(S[nodes[cur].rarc], S[inves[invcur].larc], this->r, search_point, false)) {
-            lmost = std::max(lmost, nodes[cur].ip.x);
-            cur = nodes[cur].arc_swapped ? rchild(cur) : lchild(cur);
-        } else {
-            return false;
-        }
-    }
-    return false;
-    throw std::invalid_argument("");
+    return compute_center().first;
 }
 
 bool Kptree::has_intersection_force() const {
@@ -114,10 +68,11 @@ bool Kptree::has_intersection_force() const {
 }
 
 bool Kptree::has_intersection() const {
-    return has_intersection_kp();
     bool res_kp = has_intersection_kp();
+    return res_kp;
     bool res_force = has_intersection_force();
-    if (res_kp == true && res_force == false) {
+    //if (res_kp == true && res_force == false) {
+    if (res_kp != res_force) {
         qDebug() << res_kp << res_force;
         int cnt = 0;
         for (std::size_t i = n; i < n + n; i++) {
@@ -132,7 +87,7 @@ bool Kptree::has_intersection() const {
 }
 
 Coord Kptree::center_avaliable_kp() const {
-    return Coord(0, 0);
+    return compute_center().second;
 }
 
 Coord Kptree::center_avaliable_force() const {
@@ -302,6 +257,104 @@ void Kptree::update(std::size_t cur, bool up) {
     }
 }
 
+std::pair<bool, Coord> Kptree::compute_center() const {
+    if (nodes[root()].narc == 0)
+        return std::make_pair(true, Coord(0, 0));
+    if (S[nodes[root()].lx].x - r > S[nodes[root()].rx].x + r)
+        return std::make_pair(false, Coord(0, 0));
+    std::size_t cur = root(); // cursor in K+(P)
+    Real lmost = S[nodes[root()].lx].x - this->r, rmost = S[nodes[root()].rx].x + this->r;
+    while (!isleaf(cur, n)) {
+        if (nodes[cur].jump != 0) {
+            cur = nodes[cur].jump == 1 ? lchild(cur) : rchild(cur);
+            continue;
+        }
+        Coord search_point = nodes[cur].ip;
+        //qDebug() << "search_point" << cur;
+        std::size_t invcur = root(); // cursor in K-(P)
+        while (!isleaf(invcur, n)) {
+            if (inves[invcur].jump != 0) {
+                invcur = inves[invcur].jump == 1 ? lchild(invcur) : rchild(invcur);
+            } else if (S[inves[invcur].larc].x == S[inves[invcur].rarc].x) { // 有精度问题
+                if (S[inves[invcur].larc].y < S[inves[invcur].rarc].y) {
+                    invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
+                } else {
+                    invcur = inves[invcur].arc_swapped ? rchild(invcur) : lchild(invcur);
+                }
+            } else if (search_point.x < inves[invcur].ip.x) {
+                invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
+            } else {
+                invcur = inves[invcur].arc_swapped ? rchild(invcur) : lchild(invcur);
+            }
+        }
+        //qDebug() << "invcur" << invcur;
+        auto in_brdown = [](Coord const &o, Real r, Coord const &p) { // P是否在Br-(o)内
+            if (r * r >= (p - o).norm2())
+                return true;
+            return o.x - r <= p.x && p.x <= o.x + r && p.y <= o.y;
+        };
+        auto br_intersect = [&](Coord const &up, Coord const &down, Real r, Coord x, bool left) { //
+            auto res = brup_n_brdown(up, down, r);
+            //qDebug() << std::get<0>(res);
+            if (std::get<0>(res) == false)
+                return false;
+            return br_toleft(up, std::get<1>(res), x, left, true) || br_toleft(up, std::get<2>(res), x, left, true);
+        };
+        //qDebug() << nodes[cur].larc << inves[invcur].larc;
+        if (in_brdown(S[inves[invcur].larc], this->r, search_point)) {
+            return std::make_pair(true, search_point);
+        } else if (br_intersect(S[nodes[cur].larc], S[inves[invcur].larc], this->r, search_point, true)) {
+            rmost = std::min(rmost, search_point.x);
+            cur = nodes[cur].arc_swapped ? lchild(cur) : rchild(cur);
+        } else if (br_intersect(S[nodes[cur].rarc], S[inves[invcur].larc], this->r, search_point, false)) {
+            lmost = std::max(lmost, search_point.x);
+            cur = nodes[cur].arc_swapped ? rchild(cur) : lchild(cur);
+        } else {
+            return std::make_pair(false, Coord(0, 0));
+        }
+    }
+    std::size_t invcur = root();
+    while (!isleaf(invcur, n)) {
+        if (inves[invcur].jump != 0) {
+            invcur = inves[invcur].jump == 1 ? lchild(invcur) : rchild(invcur);
+            continue;
+        }
+        auto in_brup = [](Coord const &o, Real r, Coord const &p) {
+            if (r * r >= (p - o).norm2())
+                return true;
+            return o.x - r <= p.x && p.x <= o.x + r && p.y >= o.y;
+        };
+        auto br_intersect = [&](Coord const &up, Coord const &down, Real r, Coord x, bool left) { //
+            auto res = brup_n_brdown(up, down, r);
+            if (std::get<0>(res) == false)
+                return false;
+            return br_toleft(down, std::get<1>(res), x, left, false) || br_toleft(down, std::get<2>(res), x, left, false);
+        };
+        Coord const &search_point(inves[invcur].ip);
+        if (search_point.x < lmost) {
+            invcur = inves[invcur].arc_swapped ? rchild(invcur) : lchild(invcur);
+        } else if (search_point.x > rmost) {
+            invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
+        } else if (in_brup(S[nodes[cur].larc], this->r, search_point)) {
+            return std::make_pair(true, search_point);
+        } else if (br_intersect(S[nodes[cur].larc], S[inves[invcur].larc], this->r, search_point, true)) {
+            rmost = std::min(rmost, search_point.x);
+            invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
+        } else if (br_intersect(S[nodes[cur].larc], S[inves[invcur].rarc], this->r, search_point, false)) {
+            lmost = std::max(lmost, search_point.x);
+            invcur = inves[invcur].arc_swapped ? rchild(invcur) : lchild(invcur);
+        } else {
+            return std::make_pair(false, Coord(0, 0));
+        }
+    }
+    auto res = brup_n_brdown(S[nodes[cur].larc], S[inves[invcur].larc], this->r);
+    if (std::get<0>(res) == false)
+        return std::make_pair(false, Coord(0, 0));
+    if ((lmost <= std::get<1>(res).x && std::get<1>(res).x <= rmost) || (lmost <= std::get<2>(res).x && std::get<2>(res).x <= rmost))
+        return std::make_pair(true, std::get<1>(res));
+    return std::make_pair(false, Coord(0, 0));
+}
+
 Coord Kptree::br_n_br_same(Coord const &Si, Coord const &Sj, Real r, bool up) { // 如果不相交，返回极限；如果相交，返回交点；如果重合，返回最左下的点
     if (Si.x > Sj.x)
         return br_n_br_same(Sj, Si, r, up);
@@ -372,10 +425,10 @@ bool Kptree::br_toleft(Coord const &o, Coord const &a, Coord const &b, bool left
         return br_toleft(Coord(o.x, -o.y), Coord(a.x, -a.y), Coord(b.x, -b.y), left, true);
     }
     if (left) {
-        if (a.y > o.y) return (a.y >= b.y) == (a.x < o.x);
+        if ((a.x < o.x) == (b.x < o.x)) return (a.y >= b.y) == (a.x < o.x);
         return a.x <= b.x;
     } else {
-        if (a.y > o.y) return (a.y >= b.y) == (a.x > o.x);
+        if ((a.x < o.x) == (b.x < o.x)) return (a.y >= b.y) == (a.x > o.x);
         return a.x >= b.x;
     }
 }

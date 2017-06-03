@@ -61,6 +61,7 @@ public:
 
     void update(std::size_t cur, bool up);
     void update_both(std::size_t cur) { update(cur, true); update(cur, false); }
+    std::pair<bool, Coord> compute_center() const;
 
     inline static std::size_t root() { return 1; }
     inline static std::size_t lchild(std::size_t x) { return x << 1; }

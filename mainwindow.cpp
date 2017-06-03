@@ -1,6 +1,7 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <vector>
+#include <random>
 #include <QtGlobal>
 #include <QPainter>
 #include <QMouseEvent>
@@ -168,15 +169,19 @@ void MainWindow::test() {
     }
     */
     std::vector<Coord> A;
-    A.push_back(Coord(-35 , 0));
-    A.push_back(Coord(-34 , -40));
-    A.push_back(Coord(-22 , -32));
-    A.push_back(Coord(-10 , -5));
-    Real r = 18;
+    A.push_back(Coord(-5.33667 , -2.66667));
+    A.push_back(Coord(-2.00333 , 0.666667));
+    A.push_back(Coord(-0.67 , -5.33333));
+    A.push_back(Coord(217.997 , -149.333));
+    A.push_back(Coord(217.997 , -141.333));
+    Real r = 3.82813;
     sort(A.begin(), A.end(), lt_by_x);
     Kptree tree(r, A);
-    for (std::size_t i = 0; i < 4; i++) {
+    for (std::size_t i = 3; i < 5; i++) {
         tree.insert(i);
     }
     tree.has_intersection();
+    std::default_random_engine e, f;
+    std::uniform_real_distribution<double> u(0, 1);
+    qDebug() << u(e) << u(f);
 }
