@@ -89,7 +89,17 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
         Real rotate_angle = j0 * delta;
         std::vector<Coord> rotated_S = S;
         rotate(rotated_S, rotate_angle);
-        std::sort(rotated_S.begin(), rotated_S.end(), lt_by_x);
+        std::vector<std::pair<Coord, std::size_t> > paired(rotated_S.size());
+        for (std::size_t i = 0; i < rotated_S.size(); i++) {
+            paired[i] = std::make_pair(rotated_S[i], i);
+        }
+        std::sort(paired.begin(), paired.end(), [](std::pair<Coord, std::size_t> const &a, std::pair<Coord, std::size_t> const &b) {
+            if (a.first.x != b.first.x) return a.first.x < b.first.x;
+            if (a.first.y != b.first.y) return a.first.y < b.first.y;
+            return a.second < b.second;
+        });
+        for (std::size_t i = 0; i < paired.size(); i++)
+            rotated_S[i] = paired[i].first;
         BoundingBox bb = BoundingBox::from_vector(rotated_S);
         Real long_edge = std::max(bb.dx(), bb.dy());
         if (long_edge > r * 3)
@@ -160,8 +170,10 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
                                 tmp_dc_case = 3;
                                 tmp_dc_rotate_angle = rotate_angle;
                                 tmp_dc_division_left.clear();
-                                for (std::size_t i = 0; i < Q0.size(); i++)
-                                    tmp_dc_division_left.push_back(i); // TODO
+                                for (int i = 0; i < v_pos; i++)
+                                    tmp_dc_division_left.push_back(paired[Q0[i]].second);
+                                for (int i = 0; i < h_pos; i++)
+                                    tmp_dc_division_left.push_back(paired[Q1[i]].second);
                                 return true;
                             }
                             if (!Y0 && !Y1) {
