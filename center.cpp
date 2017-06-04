@@ -245,26 +245,38 @@ void one_circle(std::vector<Coord> const &S, Real eps, Real &r_out, Coord &cente
     }
 }
 
-void fix_circle(std::vector<Coord> const &S, std::vector<Coord> const &centers, Real eps, Real &r_out, std::vector<Coord> &centers_out) { // centers和centers_out可以相同
-    if (centers.empty())
+void fix_circle(Real r, std::vector<Coord> const &S, std::vector<Coord> const &centers, Real eps, Real &r_out, std::vector<Coord> &centers_out) { // centers和centers_out可以相同
+    if (centers.size() != 2)
         return;
-    std::vector<std::vector<Coord> > Ss;
-    Ss.resize(centers.size());
-    for (Coord const &x: S) {
-        Real mindist = 0;
-        std::size_t minrank = 0;
-        for (std::size_t i = 0; i < centers.size(); i++) {
-            Real dist = (x - centers[i]).norm2();
-            if (i == 0 || dist < mindist) {
-                mindist = dist;
-                minrank = i;
-            }
+    std::vector<bool> in_left(S.size());
+    for (std::size_t i = 0; i < in_left.size(); i++)
+        in_left[i] = false;
+    for (std::size_t i: dc_division_left)
+        in_left[i] = true;
+    for (std::size_t i = 0; i < in_left.size(); i++) {
+        Real d_left = (S[i] - centers[0]).norm();
+        Real d_right = (S[i] - centers[1]).norm();
+        if (in_left[i]) {
+            if (d_left > r + eps && d_left > d_right)
+                in_left[i] = false;
+        } else {
+            if (d_right > r + eps && d_left < d_right)
+                in_left[i] = true;
         }
-        Ss[minrank].push_back(x);
+    }
+    dc_division_left.clear();
+    for (std::size_t i = 0; i < in_left.size(); i++) {
+        if (in_left[i])
+            dc_division_left.push_back(i);
+    }
+    return;
+    std::vector<Coord> Ss[2];
+    for (std::size_t i = 0; i < S.size(); i++) {
+        Ss[in_left[i] ? 0 : 1].push_back(S[i]);
     }
     r_out = 0;
-    centers_out.resize(centers.size());
-    for (std::size_t i = 0; i < centers_out.size(); i++) {
+    centers_out.resize(2);
+    for (std::size_t i = 0; i < 2; i++) {
         Real r_tmp;
         one_circle(Ss[i], eps, r_tmp, centers_out[i]);
         r_out = std::max(r_out, r_tmp);
@@ -330,6 +342,11 @@ PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
                 if (DC_check(mi + r_stop, S1, centers))
                     break;
             }
+            if (i == 5) {
+                affirmative = false;
+                centers.clear();
+                break;
+            }
         }
         std::cout << "r = " << mi << ", " << (affirmative ? "OK" : "FAIL") << std::endl;
         if (affirmative) {
@@ -343,6 +360,7 @@ PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
             lo = mi;
         }
     }
+    fix_circle(result.r, S0, result.centers, r_stop, result.r, result.centers);
     qDebug() << Kptree::get_stat_insert_called() << Kptree::get_stat_remove_called() << Kptree::get_stat_intersect_called();
     return result;
 }

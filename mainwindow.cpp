@@ -56,10 +56,11 @@ void MainWindow::paintEvent(QPaintEvent *event) {
             draw_circle(p, 3.);
         painter.setPen(Qt::red);
         painter.setBrush(Qt::NoBrush);
-        for (QPointF const &p: centers) {
-            QPointF q = QPointF(p.x() - topleft.x(), -p.y() + topleft.y()) * zoom;
-            painter.drawEllipse(q, r * zoom, r * zoom);
-        }
+        for (QPointF const &p: centers)
+            draw_circle(p, r * zoom);
+        painter.setBrush(Qt::red);
+        for (QPointF const &p: centers)
+            draw_circle(p, 3.);
         QMainWindow::paintEvent(event);
         return;
     }
@@ -72,6 +73,9 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         painter.setBrush(Qt::NoBrush);
         for (QPointF const &p: centers)
             draw_circle(p, r * zoom);
+        painter.setBrush(Qt::red);
+        for (QPointF const &p: centers)
+            draw_circle(p, 3.);
     };
     auto rotated = [](QVector<QPointF> const &S, Float theta, QPointF const &o) {
         QVector<QPointF> res;
@@ -116,11 +120,11 @@ void MainWindow::paintEvent(QPaintEvent *event) {
     });
     int draw_type = 1;
     int draw_br_n = (ticks - rotate_time - seperate_time) / one_br_time;
-    if (draw_br_n >= S_draw.size()) {
+    if (draw_br_n > S_draw.size()) {
         draw_br_n -= S_draw.size();
         draw_type = 2;
-        if (draw_br_n >= S_draw.size()) {
-            draw_br_n = S_draw.size() - 1;
+        if (draw_br_n > S_draw.size()) {
+            draw_br_n = S_draw.size();
             draw_type = 3;
         }
     }
@@ -146,9 +150,12 @@ void MainWindow::paintEvent(QPaintEvent *event) {
             painter.drawLine(QPointF(q.x() + r, 0), QPointF(q.x() + r, this->height()));
         }
     }
-
     paint_points_and_circles(r, S_draw, center_draw);
-
+    if ((draw_type == 1 || draw_type == 2) && draw_br_n > 0) {
+        painter.setPen(Qt::red);
+        painter.setBrush(Qt::red);
+        draw_circle(S_draw[draw_br_n - 1], 5.);
+    }
     QMainWindow::paintEvent(event);
 }
 
@@ -322,6 +329,8 @@ void MainWindow::on_checkBoxQuick_stateChanged(int) {
 }
 
 void MainWindow::on_pushButtonPlay_clicked() {
+    if (ticks >= ui->horizontalSliderProgress->maximum())
+        on_pushButtonStop_clicked();
     timer.start();
 }
 
@@ -332,6 +341,7 @@ void MainWindow::on_pushButtonPause_clicked() {
 void MainWindow::on_pushButtonStop_clicked() {
     timer.stop();
     ticks = 0;
+    ui->horizontalSliderProgress->setValue(ticks);
     update();
 }
 
@@ -368,7 +378,7 @@ void MainWindow::recalculate() {
     int rotate_time = (int)(200 * time_multiple);
     int seperate_time = (int)(150 * time_multiple);
     int one_br_time = (int)(20 * time_multiple);
-    ui->horizontalSliderProgress->setMaximum(rotate_time + seperate_time + one_br_time * (S.size() * 2 + 8));
+    ui->horizontalSliderProgress->setMaximum(rotate_time + seperate_time + one_br_time * (S.size() * 2 + 4));
 }
 
 bool MainWindow::prompt_stop() {
