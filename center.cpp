@@ -13,6 +13,14 @@
 
 bool quick_case_only = false;
 
+static int tmp_dc_case;
+static Real tmp_dc_rotate_angle;
+static std::vector<std::size_t> tmp_dc_division_left;
+
+int dc_case = 0;
+Float dc_rotate_angle = 0;
+std::vector<std::size_t> dc_division_left;
+
 // S内所有点绕o顺时针旋转theta弧度
 static void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
     Float c = std::cos(theta);
@@ -32,7 +40,17 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
     for (int j = 0; j * delta < M_PI - delta / 2; j++) {
         std::vector<Coord> rotated_S = S;
         rotate(rotated_S, j * delta);
-        std::sort(rotated_S.begin(), rotated_S.end(), lt_by_x);
+        std::vector<std::pair<Coord, std::size_t> > paired(rotated_S.size());
+        for (std::size_t i = 0; i < rotated_S.size(); i++) {
+            paired[i] = std::make_pair(rotated_S[i], i);
+        }
+        std::sort(paired.begin(), paired.end(), [](std::pair<Coord, std::size_t> const &a, std::pair<Coord, std::size_t> const &b) {
+            if (a.first.x != b.first.x) return a.first.x < b.first.x;
+            if (a.first.y != b.first.y) return a.first.y < b.first.y;
+            return a.second < b.second;
+        });
+        for (std::size_t i = 0; i < paired.size(); i++)
+            rotated_S[i] = paired[i].first;
         BoundingBox bb = BoundingBox::from_vector(rotated_S);
         Real long_edge = std::max(bb.dx(), bb.dy());
         Kptree SL(r, rotated_S), SR(r, rotated_S);
@@ -44,6 +62,11 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
                 centers.push_back(SL.center_avaliable());
                 centers.push_back(SR.center_avaliable());
                 rotate(centers, -j * delta);
+                tmp_dc_case = 1;
+                tmp_dc_rotate_angle = j * delta;
+                tmp_dc_division_left.clear();
+                for (std::size_t k = 0; k < i; k++)
+                    tmp_dc_division_left.push_back(paired[k].second);
                 return true;
             }
             if (i < rotated_S.size()) {
@@ -134,6 +157,11 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
                                 centers.push_back(SL.center_avaliable());
                                 centers.push_back(SR.center_avaliable());
                                 rotate(centers, -rotate_angle);
+                                tmp_dc_case = 3;
+                                tmp_dc_rotate_angle = rotate_angle;
+                                tmp_dc_division_left.clear();
+                                for (std::size_t i = 0; i < Q0.size(); i++)
+                                    tmp_dc_division_left.push_back(i); // TODO
                                 return true;
                             }
                             if (!Y0 && !Y1) {
@@ -252,66 +280,57 @@ PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
     BoundingBox bb = BoundingBox::from_vector(S0);
     PCenterResult result;
     Real r_stop = std::sqrt(bb.dx() * bb.dx() + bb.dy() * bb.dy()) * eps / 4;
-    for (int i = 0; i < 1; i++) {
-        Real lo = 0;
-        Real hi = std::sqrt(bb.dx() * bb.dx() + bb.dy() * bb.dy()) / 2;
-        std::vector<Coord> S;
-        static std::default_random_engine random_engine = std::default_random_engine(i);
-        std::uniform_real_distribution<Real> u(-r_stop, r_stop);
-        for (Coord const &a: S0) {
-            Real x = a.x + u(random_engine);
-            Real y = a.y + u(random_engine);
-            S.push_back(Coord(x, y));
-        }
-        std::vector<Coord> centers;
-        result.r = 0;
-        while (hi - lo > r_stop) {
-            Real mi = (lo + hi) / 2;
-            bool affirmative = false;
-            for (int i = 0; i < 20; i++) {
-                std::vector<Coord> S1;
-                if (i == 0) {
-                    affirmative = DC(mi, S, centers);
-                } else {
-                    Real mul = pow(2, i);
-                    for (Coord const &a: S0) {
-                        Real x = a.x + u(random_engine) * mul;
-                        Real y = a.y + u(random_engine) * mul;
-                        S1.push_back(Coord(x, y));
-                    }
-                    affirmative = DC(mi, S1, centers);
-                }
-                if (!affirmative)
-                    break;
-                if (i == 0) {
-                    if (DC_check(mi + r_stop, S, centers))
-                        break;
-                } else {
-                    if (DC_check(mi + r_stop, S1, centers))
-                        break;
-                }
-            }
-            std::cout << "r = " << mi << ", " << (affirmative ? "OK" : "FAIL") << std::endl;
-            if (affirmative) {
-                result.r = mi;
-                result.centers = centers;
-                hi = mi;
-            } else {
-                lo = mi;
-            }
-        }
-        qDebug() << Kptree::get_stat_insert_called() << Kptree::get_stat_remove_called() << Kptree::get_stat_intersect_called();
-        bool all_in = true;
-        Real r2cmp = (result.r + r_stop * 4) * (result.r + r_stop * 4);
-        for (Coord const &x: S) {
-            if (result.centers.size() == 2 && (x - result.centers[0]).norm2() > r2cmp && (x - result.centers[1]).norm2() > r2cmp) {
-                all_in = false;
-                break;
-            }
-        }
-        if (all_in)
-            break;
+    Real lo = 0;
+    Real hi = std::sqrt(bb.dx() * bb.dx() + bb.dy() * bb.dy()) / 2;
+    std::vector<Coord> S;
+    static std::default_random_engine random_engine = std::default_random_engine(0);
+    std::uniform_real_distribution<Real> u(-r_stop, r_stop);
+    for (Coord const &a: S0) {
+        Real x = a.x + u(random_engine);
+        Real y = a.y + u(random_engine);
+        S.push_back(Coord(x, y));
     }
-    // fix_circle(S0, result.centers, 0.01, result.r, result.centers);
+    dc_case = 0;
+    std::vector<Coord> centers;
+    result.r = 0;
+    while (hi - lo > r_stop) {
+        Real mi = (lo + hi) / 2;
+        bool affirmative = false;
+        for (int i = 0; i < 20; i++) {
+            std::vector<Coord> S1;
+            if (i == 0) {
+                affirmative = DC(mi, S, centers);
+            } else {
+                Real mul = pow(2, i);
+                for (Coord const &a: S0) {
+                    Real x = a.x + u(random_engine) * mul;
+                    Real y = a.y + u(random_engine) * mul;
+                    S1.push_back(Coord(x, y));
+                }
+                affirmative = DC(mi, S1, centers);
+            }
+            if (!affirmative)
+                break;
+            if (i == 0) {
+                if (DC_check(mi + r_stop, S, centers))
+                    break;
+            } else {
+                if (DC_check(mi + r_stop, S1, centers))
+                    break;
+            }
+        }
+        std::cout << "r = " << mi << ", " << (affirmative ? "OK" : "FAIL") << std::endl;
+        if (affirmative) {
+            dc_case = tmp_dc_case;
+            dc_rotate_angle = tmp_dc_rotate_angle;
+            dc_division_left = tmp_dc_division_left;
+            result.r = mi;
+            result.centers = centers;
+            hi = mi;
+        } else {
+            lo = mi;
+        }
+    }
+    qDebug() << Kptree::get_stat_insert_called() << Kptree::get_stat_remove_called() << Kptree::get_stat_intersect_called();
     return result;
 }

@@ -3,6 +3,7 @@
 
 #include <QMainWindow>
 #include <QPointF>
+#include <QTimer>
 #include <QVector>
 
 namespace Ui {
@@ -27,14 +28,23 @@ protected:
 private slots:
     void on_pushButtonExportPoints_clicked();
     void on_pushButtonClear_clicked();
+    void on_pushButtonRandom_clicked();
     void on_pushButtonCircle_clicked();
     void on_pushButtonRectangle_clicked();
     void on_pushButtonHyperbola_clicked();
     void on_checkBoxQuick_stateChanged(int arg1);
 
+    void on_pushButtonPlay_clicked();
+    void on_pushButtonPause_clicked();
+    void on_pushButtonStop_clicked();
+    void on_timer();
+
+    void on_horizontalSliderProgress_sliderMoved(int position);
+
 private:
     void reset_zoom();
     void recalculate();
+    bool prompt_stop();
     void test();
 
 private:
@@ -47,6 +57,12 @@ private:
     QVector<QPointF> S;
     qreal r;
     QVector<QPointF> centers;
+    int kp_last_insert_call;
+    int kp_last_remove_call;
+    int kp_last_intersect_call;
+    QTimer timer;
+    qreal time_multiple;
+    int ticks;
 };
 
 #endif // MAINWINDOW_H
