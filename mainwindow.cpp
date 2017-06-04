@@ -1,5 +1,6 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
+#include <cmath>
 #include <vector>
 #include <random>
 #include <QtGlobal>
@@ -16,15 +17,16 @@ MainWindow::MainWindow(QWidget *parent) :
     test();
     ui->setupUi(this);
     qsrand(0);
+    leftButtonPressed = false;
     dragging = false;
-    topleft = QPointF(-266.67, 266.67);
-    zoom = 1.5;
-    for (int i = 0; i < 4; i++) {
+    reset_zoom();
+    for (int i = 0; i < 10; i++) {
         qreal x = (qreal)qrand() / RAND_MAX * 200.0 - 100.0;
         qreal y = (qreal)qrand() / RAND_MAX * 200.0 - 100.0;
         S.push_back(QPointF(x, y));
     }
-    recalculate();
+    // recalculate();
+    ui->pushButtonCircle->click();
     this->resize(800, 800);
 }
 
@@ -39,7 +41,7 @@ void MainWindow::paintEvent(QPaintEvent *event) {
     painter.setBrush(Qt::blue);
     for (QPointF const &p: S) {
         QPointF q = QPointF(p.x() - topleft.x(), -p.y() + topleft.y()) * zoom;
-        painter.drawEllipse(q, 2., 2.);
+        painter.drawEllipse(q, 3., 3.);
     }
     painter.setPen(Qt::red);
     painter.setBrush(Qt::NoBrush);
@@ -54,28 +56,23 @@ void MainWindow::mousePressEvent(QMouseEvent *event) {
     QPointF p(event->pos());
     p = QPointF(p.x(), -p.y()) / zoom + topleft;
     if (event->button() == Qt::LeftButton) {
-        if (ui->checkBoxDragMode->isChecked()) {
-            dragging = true;
-            dragStart = event->pos();
-        } else {
-            S.push_back(p);
-            recalculate();
-            update();
-        }
+        leftButtonPressed = true;
+        dragStart = event->pos();
     } else if (event->button() == Qt::RightButton) {
         if (!S.empty()) {
+            auto norm = [](QPointF r) { return std::sqrt(r.x() * r.x() + r.y() * r.y()); };
             int idx = 0;
             qreal mindist = 0;
             bool found = false;
             for (int i = 0; i < S.size(); i++) {
-                qreal dist = (S[i] - p).manhattanLength();
+                qreal dist = norm(S[i] - p);
                 if (!found || dist < mindist) {
                     idx = i;
                     mindist = dist;
                     found = true;
                 }
             }
-            if (mindist * zoom < 20) {
+            if (mindist * zoom < 100) {
                 S.remove(idx);
                 recalculate();
                 update();
@@ -86,23 +83,43 @@ void MainWindow::mousePressEvent(QMouseEvent *event) {
 }
 
 void MainWindow::mouseMoveEvent(QMouseEvent *event) {
-    if (dragging) {
+    if (leftButtonPressed && (dragging || (dragStart - event->pos()).manhattanLength() > 20)) {
         QPoint p(event->pos() - dragStart);
         topleft -= QPointF(p.x(), -p.y()) / zoom;
         dragStart = event->pos();
+        dragging = true;
         update();
     }
     QMainWindow::mouseMoveEvent(event);
 }
 
 void MainWindow::mouseReleaseEvent(QMouseEvent *event) {
+    QPointF p(event->pos());
+    p = QPointF(p.x(), -p.y()) / zoom + topleft;
     if (event->button() == Qt::LeftButton) {
+        leftButtonPressed = false;
         if (dragging) {
             QPoint p(event->pos() - dragStart);
             topleft -= QPointF(p.x(), -p.y()) / zoom;
             dragStart = event->pos();
             dragging = false;
             update();
+        } else {
+            auto norm = [](QPointF r) { return std::sqrt(r.x() * r.x() + r.y() * r.y()); };
+            bool found = false;
+            for (QPointF const &ps: S) {
+                if (norm(ps - p) < 2.5 / zoom) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                S.push_back(p);
+                if (centers.size() != 2 || (norm(p - centers[0]) > r && norm(p - centers[1]) > r)) {
+                    recalculate();
+                }
+                update();
+            }
         }
     }
     QMainWindow::mouseReleaseEvent(event);
@@ -126,13 +143,77 @@ void MainWindow::on_pushButtonExportPoints_clicked() {
     }
 }
 
+void MainWindow::on_pushButtonClear_clicked() {
+    S.clear();
+    reset_zoom();
+    recalculate();
+    update();
+}
+
+void MainWindow::on_pushButtonCircle_clicked() {
+    S.clear();
+    for (double theta = 0; theta < M_PI * 2 - M_PI / 40; theta += M_PI / 10) {
+        S.push_back(QPointF(-50 + 70 * cos(theta), 70 * sin(theta)));
+        S.push_back(QPointF(50 + 70 * cos(theta), 70 * sin(theta)));
+    }
+    reset_zoom();
+    recalculate();
+    update();
+}
+
+void MainWindow::on_pushButtonRectangle_clicked()
+{
+    S.clear();
+    for (int i = 0; i < 11; i++) {
+        S.push_back(QPointF(i * 20 - 100, -40));
+        S.push_back(QPointF(i * 20 - 100, 40));
+    }
+    for (int i = 0; i < 3; i++) {
+        S.push_back(QPointF(-100, i * 20 - 20));
+        S.push_back(QPointF(100, i * 20 - 20));
+    }
+    for (int i = -9; i < 6; i++) {
+        if (i != -2 && i != 2)
+            S.push_back(QPointF(0, i * 20));
+    }
+    reset_zoom();
+    recalculate();
+    update();
+}
+
+void MainWindow::on_pushButtonHyperbola_clicked() {
+    S.clear();
+    for (int y = -100; y <= 100; y += 10)
+        S.push_back(QPointF(std::sqrt(y * y * 1.5 + 1000), y));
+    QPointF o(0, -70);
+    S.push_back(o);
+    for (int y = 5; y < 180; y += 14.3) {
+        S.push_back(o + QPointF(std::sqrt(y) * 7, y));
+        S.push_back(o + QPointF(-std::sqrt(y) * 7, y));
+    }
+    reset_zoom();
+    recalculate();
+    update();
+}
+
+void MainWindow::on_checkBoxQuick_stateChanged(int) {
+    recalculate();
+    update();
+}
+
+void MainWindow::reset_zoom() {
+    topleft = QPointF(-266.67, 266.67);
+    zoom = 1.5;
+}
+
 void MainWindow::recalculate() {
     std::vector<Coord> v;
     for (QPointF p: S) {
         v.push_back(Coord(Real(p.x()), Real(p.y())));
     }
     PCenterResult result;
-    result = p_center(2, v);
+    quick_case_only = ui->checkBoxQuick->isChecked();
+    result = p_center(2, v, 2e-4);
     r = (qreal)result.r;
     centers.clear();
     for (Coord p: result.centers) {

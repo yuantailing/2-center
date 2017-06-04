@@ -11,6 +11,8 @@ struct PCenterResult {
     std::vector<Coord> centers;
 };
 
-PCenterResult p_center(int p, std::vector<Coord> const &S, Real eps=Real(1e-6));
+extern bool quick_case_only;
+
+PCenterResult p_center(int p, std::vector<Coord> const &S, Real eps=Real(1e-4));
 
 #endif // CENTER_H

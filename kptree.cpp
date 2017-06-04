@@ -5,6 +5,10 @@
 #include <stdexcept>
 #include <stack>
 
+int Kptree::stat_insert_called = 0;
+int Kptree::stat_remove_called = 0;
+int Kptree::stat_intersect_called = 0;
+
 Kptree::Kptree(Real r, std::vector<Coord> const &S):
     r(r),
     S(S)
@@ -37,6 +41,7 @@ Kptree::~Kptree() { }
 
 void Kptree::insert(std::size_t idx)
 {
+    stat_insert_called++;
     std::size_t cur = idx + n;
     nodes[cur].narc = 1;
     inves[cur].narc = 1;
@@ -46,6 +51,7 @@ void Kptree::insert(std::size_t idx)
 
 void Kptree::remove(std::size_t idx)
 {
+    stat_remove_called++;
     std::size_t cur = idx + n;
     nodes[cur].narc = 0;
     inves[cur].narc = 0;
@@ -90,14 +96,6 @@ Coord Kptree::center_avaliable_kp() const {
 }
 
 Coord Kptree::center_avaliable_force() const {
-#if 0
-    IntersectionResult arcs = intersection_arcs_with_outer_circles(true);
-    if (arcs.arcs.empty())
-        return Coord(Real(0), Real(0));
-    else
-        return arcs.arcs.front().o + arcs.arcs.front().oa;
-#else
-    // 在未实现intersection_arcs_with_outer_circles时的替代方案
     bool no_point = true;
     for (std::size_t i = 0; i < S.size(); i++) {
         if (!flag[i]) continue;
@@ -139,7 +137,6 @@ Coord Kptree::center_avaliable_force() const {
     if (no_point)
         return Coord(Real(0), Real(0));
     throw std::invalid_argument("");
-#endif
 }
 
 Coord Kptree::center_avaliable() const
@@ -257,6 +254,7 @@ void Kptree::update(std::size_t cur, bool up) {
 }
 
 std::pair<bool, Coord> Kptree::compute_center() const {
+    stat_intersect_called++;
     if (nodes[root()].narc == 0)
         return std::make_pair(true, Coord(0, 0));
     if (S[nodes[root()].lx].x - r > S[nodes[root()].rx].x + r)
@@ -275,7 +273,7 @@ std::pair<bool, Coord> Kptree::compute_center() const {
         while (!isleaf(invcur, n)) {
             if (inves[invcur].jump != 0) {
                 invcur = inves[invcur].jump == 1 ? lchild(invcur) : rchild(invcur);
-            } else if (S[inves[invcur].larc].x == S[inves[invcur].rarc].x) { // 有精度问题
+            } else if (std::abs(S[inves[invcur].larc].x - S[inves[invcur].rarc].x) < 1e-5) { // 有精度问题
                 if (S[inves[invcur].larc].y < S[inves[invcur].rarc].y) {
                     invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
                 } else {
@@ -302,7 +300,7 @@ std::pair<bool, Coord> Kptree::compute_center() const {
                     (between_most(std::get<2>(res).x) && br_toleft(up, std::get<2>(res), x, left, true));
         };
         //qDebug() << nodes[cur].larc << inves[invcur].larc;
-        if (in_brdown(S[inves[invcur].larc], this->r, search_point)) {
+        if (between_most(search_point.x) && in_brdown(S[inves[invcur].larc], this->r, search_point)) {
             return std::make_pair(true, search_point);
         } else if (br_intersect(S[nodes[cur].larc], S[inves[invcur].larc], this->r, search_point, true)) {
             rmost = std::min(rmost, search_point.x);
@@ -333,11 +331,17 @@ std::pair<bool, Coord> Kptree::compute_center() const {
                     (between_most(std::get<2>(res).x) && br_toleft(down, std::get<2>(res), x, left, false));
         };
         Coord const &search_point(inves[invcur].ip);
-        if (search_point.x < lmost) {
+        if (std::abs(S[inves[invcur].larc].x - S[inves[invcur].rarc].x) < 1e-5) { // 有精度问题
+            if (S[inves[invcur].larc].y < S[inves[invcur].rarc].y) {
+                invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
+            } else {
+                invcur = inves[invcur].arc_swapped ? rchild(invcur) : lchild(invcur);
+            }
+        } else if (search_point.x < lmost) {
             invcur = inves[invcur].arc_swapped ? rchild(invcur) : lchild(invcur);
         } else if (search_point.x > rmost) {
             invcur = inves[invcur].arc_swapped ? lchild(invcur) : rchild(invcur);
-        } else if (in_brup(S[nodes[cur].larc], this->r, search_point)) {
+        } else if (between_most(search_point.x) && in_brup(S[nodes[cur].larc], this->r, search_point)) {
             return std::make_pair(true, search_point);
         } else if (br_intersect(S[nodes[cur].larc], S[inves[invcur].larc], this->r, search_point, true)) {
             rmost = std::min(rmost, search_point.x);

@@ -11,6 +11,8 @@
 #define M_PI 3.14159265358979323846
 #endif
 
+bool quick_case_only = false;
+
 // S内所有点绕o顺时针旋转theta弧度
 static void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
     Float c = std::cos(theta);
@@ -27,7 +29,7 @@ static bool lt_by_x(Coord const &a, Coord const &b) {
 
 bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
     Float delta = M_PI / 18;
-    for (int j = 0; j * delta < M_PI; j++) {
+    for (int j = 0; j * delta < M_PI - delta / 2; j++) {
         std::vector<Coord> rotated_S = S;
         rotate(rotated_S, j * delta);
         std::sort(rotated_S.begin(), rotated_S.end(), lt_by_x);
@@ -59,18 +61,19 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
 }
 
 bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
-    Float delta = M_PI / 6;
-    for (int j0 = 0; j0 * delta < M_PI; j0++) {
+    Float delta = M_PI / 3;
+    for (int j0 = 0; j0 * delta < M_PI - delta / 2; j0++) {
+        Real rotate_angle = j0 * delta;
         std::vector<Coord> rotated_S = S;
-        rotate(rotated_S, j0 * delta);
+        rotate(rotated_S, rotate_angle);
         std::sort(rotated_S.begin(), rotated_S.end(), lt_by_x);
         BoundingBox bb = BoundingBox::from_vector(rotated_S);
         Real long_edge = std::max(bb.dx(), bb.dy());
         if (long_edge > r * 3)
             continue;
-        Real de = r / 2;
-        for (Real zx = bb.xmin + r * 0.1015791152251; zx <= bb.xmax; zx += de) {
-            for (Real zy = bb.ymin + r * 0.1015791154196; zy <= bb.ymax; zy += de) {
+        Real de = r * 0.7057413;
+        for (Real zx = bb.xmin + de / 2; zx == bb.xmin + de / 2 || zx <= bb.xmax - de / 2; zx += de) {
+            for (Real zy = bb.ymin + de / 2; zy == bb.xmin + de / 2 || zy <= bb.ymax - de / 2; zy += de) {
                 Coord z(zx, zy);
                 std::vector<std::size_t> Q0, Q1;
                 for (std::size_t i = 0; i < rotated_S.size(); i++) {
@@ -130,7 +133,7 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
                                 centers.clear();
                                 centers.push_back(SL.center_avaliable());
                                 centers.push_back(SR.center_avaliable());
-                                rotate(centers, -j0 * delta);
+                                rotate(centers, -rotate_angle);
                                 return true;
                             }
                             if (!Y0 && !Y1) {
@@ -165,40 +168,67 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
     return false;
 }
 
-bool DC_bf(Real r, std::vector<Coord> const &S0, std::vector<Coord> &centers) {
-    std::vector<Coord> S(S0);
-    std::sort(S.begin(), S.end(), lt_by_x);
-    auto circle_n_circle = [](Coord const &a, Coord const &b, Real r, bool &flag, Coord &p1, Coord &p2) {
-        Coord delta = (b - a) / 2;
-        Real delta_norm2 = delta.norm2();
-        Real r2 = r * r;
-        Real line_norm2 = r2 - delta_norm2;
-        if (line_norm2 < 0 || delta_norm2 == 0) { // 重合情况可以视为只有一个圆，不需要加判断点，与无交相同
-            flag = false;
-            return;
-        }
-        Coord unit = delta / std::sqrt(delta_norm2);
-        Coord line = Coord(-unit.y, unit.x) * std::sqrt(line_norm2);
-        p1 = a + delta + line;
-        p2 = a + delta - line;
-        flag = true;
-    };
-    for (std::size_t i = 1; i < S.size(); i++) {
-        bool flag;
-        Coord p1, p2;
-        circle_n_circle(S[0], S[i], r, flag, p1, p2);
-        if (flag) {
-
-        }
-    }
+bool DC(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
+    if (DC_separated(r, S, centers)) return true;
+    if (!quick_case_only && DC_close(r, S, centers)) return true;
     return false;
 }
 
-bool DC(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
-    // return DC_bf(r, S, centers);
-    if (DC_separated(r, S, centers)) return true;
-    if (DC_close(r, S, centers)) return true;
-    return false;
+bool DC_check(Real r, std::vector<Coord> const &S, std::vector<Coord> const &centers) {
+    for (Coord const &x: S) {
+        bool found = false;
+        for (Coord const &center: centers) {
+            if ((x - center).norm2() <= r * r) {
+                found = true;
+                break;
+            }
+        }
+        if (!found) return false;
+    }
+    return true;
+}
+
+void one_circle(std::vector<Coord> const &S, Real eps, Real &r_out, Coord &center_out) {
+    r_out = 50.0;
+    center_out = Coord(50, 50);
+    if (S.size() == 0) {
+        r_out = 0;
+        center_out = Coord(0, 0);
+    } else if (S.size() == 1) {
+        r_out = 0;
+        center_out = S[0];
+    } else if (S.size() == 2) {
+        center_out = (S[0] + S[1]) / 2;
+        r_out = (S[0] - center_out).norm();
+    } else {
+
+    }
+}
+
+void fix_circle(std::vector<Coord> const &S, std::vector<Coord> const &centers, Real eps, Real &r_out, std::vector<Coord> &centers_out) { // centers和centers_out可以相同
+    if (centers.empty())
+        return;
+    std::vector<std::vector<Coord> > Ss;
+    Ss.resize(centers.size());
+    for (Coord const &x: S) {
+        Real mindist = 0;
+        std::size_t minrank = 0;
+        for (std::size_t i = 0; i < centers.size(); i++) {
+            Real dist = (x - centers[i]).norm2();
+            if (i == 0 || dist < mindist) {
+                mindist = dist;
+                minrank = i;
+            }
+        }
+        Ss[minrank].push_back(x);
+    }
+    r_out = 0;
+    centers_out.resize(centers.size());
+    for (std::size_t i = 0; i < centers_out.size(); i++) {
+        Real r_tmp;
+        one_circle(Ss[i], eps, r_tmp, centers_out[i]);
+        r_out = std::max(r_out, r_tmp);
+    }
 }
 
 PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
@@ -212,32 +242,76 @@ PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
             result.centers.push_back(center);
         return result;
     }
+    if (S0.size() <= 2) {
+        PCenterResult result;
+        result.r = Real(0);
+        result.centers.push_back(S0[0]);
+        result.centers.push_back(S0[S0.size() - 1]);
+        return result;
+    }
     BoundingBox bb = BoundingBox::from_vector(S0);
-    Real lo = 0;
-    Real hi = std::sqrt(bb.dx() * bb.dx() + bb.dy() * bb.dy()) * 0.501;
-    Real r_stop = hi / 2 * eps / 2;
-    std::vector<Coord> S;
-    std::default_random_engine e;
-    std::uniform_real_distribution<Real> u(-r_stop, r_stop);
-    for (Coord const &a: S0) {
-        Real x = a.x + u(e);
-        Real y = a.y + u(e);
-        S.push_back(Coord(x, y));
-    }
-    std::vector<Coord> centers;
     PCenterResult result;
-    result.r = 0;
-    while (hi - lo > r_stop) {
-        Real mi = (lo + hi) / 2;
-        bool affirmative = DC(mi, S, centers);
-        std::cout << "r = " << mi << ", " << (affirmative ? "OK" : "FAIL") << std::endl;
-        if (affirmative) {
-            result.r = mi;
-            result.centers = centers;
-            hi = mi;
-        } else {
-            lo = mi;
+    Real r_stop = std::sqrt(bb.dx() * bb.dx() + bb.dy() * bb.dy()) * eps / 4;
+    for (int i = 0; i < 1; i++) {
+        Real lo = 0;
+        Real hi = std::sqrt(bb.dx() * bb.dx() + bb.dy() * bb.dy()) / 2;
+        std::vector<Coord> S;
+        static std::default_random_engine random_engine = std::default_random_engine(i);
+        std::uniform_real_distribution<Real> u(-r_stop, r_stop);
+        for (Coord const &a: S0) {
+            Real x = a.x + u(random_engine);
+            Real y = a.y + u(random_engine);
+            S.push_back(Coord(x, y));
         }
+        std::vector<Coord> centers;
+        result.r = 0;
+        while (hi - lo > r_stop) {
+            Real mi = (lo + hi) / 2;
+            bool affirmative = false;
+            for (int i = 0; i < 20; i++) {
+                std::vector<Coord> S1;
+                if (i == 0) {
+                    affirmative = DC(mi, S, centers);
+                } else {
+                    Real mul = pow(2, i);
+                    for (Coord const &a: S0) {
+                        Real x = a.x + u(random_engine) * mul;
+                        Real y = a.y + u(random_engine) * mul;
+                        S1.push_back(Coord(x, y));
+                    }
+                    affirmative = DC(mi, S1, centers);
+                }
+                if (!affirmative)
+                    break;
+                if (i == 0) {
+                    if (DC_check(mi + r_stop, S, centers))
+                        break;
+                } else {
+                    if (DC_check(mi + r_stop, S1, centers))
+                        break;
+                }
+            }
+            std::cout << "r = " << mi << ", " << (affirmative ? "OK" : "FAIL") << std::endl;
+            if (affirmative) {
+                result.r = mi;
+                result.centers = centers;
+                hi = mi;
+            } else {
+                lo = mi;
+            }
+        }
+        qDebug() << Kptree::get_stat_insert_called() << Kptree::get_stat_remove_called() << Kptree::get_stat_intersect_called();
+        bool all_in = true;
+        Real r2cmp = (result.r + r_stop * 4) * (result.r + r_stop * 4);
+        for (Coord const &x: S) {
+            if (result.centers.size() == 2 && (x - result.centers[0]).norm2() > r2cmp && (x - result.centers[1]).norm2() > r2cmp) {
+                all_in = false;
+                break;
+            }
+        }
+        if (all_in)
+            break;
     }
+    // fix_circle(S0, result.centers, 0.01, result.r, result.centers);
     return result;
 }

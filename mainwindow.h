@@ -26,13 +26,20 @@ protected:
 
 private slots:
     void on_pushButtonExportPoints_clicked();
+    void on_pushButtonClear_clicked();
+    void on_pushButtonCircle_clicked();
+    void on_pushButtonRectangle_clicked();
+    void on_pushButtonHyperbola_clicked();
+    void on_checkBoxQuick_stateChanged(int arg1);
 
 private:
+    void reset_zoom();
     void recalculate();
     void test();
 
 private:
     Ui::MainWindow *ui;
+    bool leftButtonPressed;
     bool dragging;
     QPoint dragStart;
     qreal zoom;

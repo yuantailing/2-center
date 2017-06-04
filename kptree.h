@@ -52,7 +52,12 @@ public:
     Coord center_avaliable_force() const;
     Coord center_avaliable() const;
     IntersectionResult intersection_arcs_with_outer_circles(bool only_self=false) const; // only_self：只计算KP树的交集，不计算与其它圆的交点
-public:
+
+    static int get_stat_insert_called() { return stat_insert_called; }
+    static int get_stat_remove_called() { return stat_remove_called; }
+    static int get_stat_intersect_called() { return stat_intersect_called; }
+
+private:
     Kptree(Kptree const &) = delete;
     Kptree &operator =(Kptree const &) = delete;
     Real r;
@@ -78,6 +83,10 @@ public:
     std::size_t h;
     std::vector<KptreeNode> nodes;
     std::vector<KptreeNode> inves;
+
+    static int stat_insert_called;
+    static int stat_remove_called;
+    static int stat_intersect_called;
 };
 
 #endif // KPTREE_H
