@@ -5,6 +5,7 @@
 #include <stdexcept>
 #include <stack>
 
+
 int Kptree::stat_insert_called = 0;
 int Kptree::stat_remove_called = 0;
 int Kptree::stat_intersect_called = 0;
@@ -66,7 +67,7 @@ bool Kptree::has_intersection_kp() const {
 bool Kptree::has_intersection_force() const {
     try {
         center_avaliable_force();
-    } catch (std::logic_error const &e) {
+    } catch (std::logic_error const &) {
         return false;
     }
     return true;

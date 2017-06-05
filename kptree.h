@@ -23,8 +23,8 @@ struct IntersectionOnArc
 struct IntersectionResult
 {
 public:
-    std::vector<ArcRFixed> arcs; // KP树上的圆的交集区域（用一组弧表示）
-    std::vector<std::vector<IntersectionOnArc> > intersection_on_arcs; // 每条弧进出的点集
+    std::vector<ArcRFixed> arcs; // The boundary of K(P) tree's intersectoin, expressed by a group of arcs
+    std::vector<std::vector<IntersectionOnArc> > intersection_on_arcs; // Intersections on arcs, intersected by boundary of K(P) and circles out of P
 };
 
 struct KptreeNode
@@ -41,7 +41,7 @@ struct KptreeNode
 class Kptree
 {
 public:
-    Kptree(Real r, std::vector<Coord> const &S); // S应已按x排序
+    Kptree(Real r, std::vector<Coord> const &S); // S should be already ordered by x
     ~Kptree();
     void insert(std::size_t idx);
     void remove(std::size_t idx);
@@ -51,7 +51,7 @@ public:
     Coord center_avaliable_kp() const;
     Coord center_avaliable_force() const;
     Coord center_avaliable() const;
-    IntersectionResult intersection_arcs_with_outer_circles(bool only_self=false) const; // only_self：只计算KP树的交集，不计算与其它圆的交点
+    IntersectionResult intersection_arcs_with_outer_circles(bool only_self=false) const; // only_self: Only compute intersections of K(P) tree, no other intersections
 
     static int get_stat_insert_called() { return stat_insert_called; }
     static int get_stat_remove_called() { return stat_remove_called; }

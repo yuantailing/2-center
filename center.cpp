@@ -2,6 +2,7 @@
 #include <cassert>
 #include <cmath>
 #include <algorithm>
+#include <chrono>
 #include <iostream>
 #include <random>
 #include <stdexcept>
@@ -21,7 +22,7 @@ int dc_case = 0;
 Float dc_rotate_angle = 0;
 std::vector<bool> dc_division_left;
 
-// S内所有点绕o顺时针旋转theta弧度
+// rotate points in S by theta (center is o)
 static void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
     Float c = std::cos(theta);
     Float s = std::sin(theta);
@@ -125,7 +126,7 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
                 };
                 std::vector<Task> tasks;
                 std::vector<Task> newTasks;
-                tasks.push_back(Task(0, Q0.size(), 0, Q1.size()));
+                tasks.push_back(Task(0, (int)Q0.size(), 0, (int)Q1.size()));
 
                 while (!tasks.empty()) {
                     Kptree SL(r, rotated_S), SR(r, rotated_S);
@@ -316,6 +317,7 @@ PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
         result.centers.push_back(S0[S0.size() - 1]);
         return result;
     }
+    auto start = std::chrono::system_clock::now();
     BoundingBox bb = BoundingBox::from_vector(S0);
     PCenterResult result;
     Real r_stop = bb.diagonal() * eps / 4;
@@ -376,6 +378,12 @@ PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
         }
     }
     fix_circle(result.r, S0, result.centers, bb.diagonal() * 1e-6, result.r, result.centers);
-    qDebug() << Kptree::get_stat_insert_called() << Kptree::get_stat_remove_called() << Kptree::get_stat_intersect_called();
+    auto end = std::chrono::system_clock::now();
+    auto duration = std::chrono::duration_cast<std::chrono::nanoseconds>(end - start);
+    std::cout << "Spend " << double(duration.count()) * std::chrono::nanoseconds::period::num /
+                 std::chrono::nanoseconds::period::den << " s" << std::endl;
+    std::cout << "K(P) tree: insert " << Kptree::get_stat_insert_called() <<
+                 ", remove " << Kptree::get_stat_remove_called() <<
+                 ", intersect " << Kptree::get_stat_intersect_called() << std::endl;
     return result;
 }

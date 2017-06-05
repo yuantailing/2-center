@@ -11,6 +11,10 @@
 #include "center.h"
 #include "kptree.h"
 
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
     ui(new Ui::MainWindow) {
@@ -84,12 +88,13 @@ void MainWindow::paintEvent(QPaintEvent *event) {
             now++;
             if (now * time_multiple <= ticks) {
                 current = -1;
-                key_points = l;
+                key_points.clear();
+                for (int idx: l)
+                    key_points.push_back(idx);
                 d_current = d;
                 r2_current = r2;
             }
         };
-
         auto one_center = [&]() {
             d = (S[0] + S[1]) / 2;
             r2 = norm2(S[0] - d);
@@ -132,12 +137,16 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         one_center();
         ui->horizontalSliderProgress->setMaximum((now + 8) * time_multiple);
         if (ticks == 0) {
-            paint_points_and_circles(std::sqrt(r2), S, {d});
+            QVector<QPointF> centers_draw;
+            centers_draw.push_back(d);
+            paint_points_and_circles(std::sqrt(r2), S, centers_draw);
         } else {
             QVector<QPointF> S_draw;
+            QVector<QPointF> centers_draw;
             for (int i = current + 1; i < S.size(); i++)
                 S_draw.push_back(S[i]);
-            paint_points_and_circles(std::sqrt(r2_current), S_draw, {d_current});
+            centers_draw.push_back(d_current);
+            paint_points_and_circles(std::sqrt(r2_current), S_draw, centers_draw);
             painter.setPen(Qt::red);
             painter.setBrush(Qt::red);
             for (int p: key_points)
@@ -196,11 +205,11 @@ void MainWindow::paintEvent(QPaintEvent *event) {
     QVector<QPointF> S_draw;
     for (std::size_t i = 0; i < dc_division_left.size(); i++)
         if (dc_division_left[i] == true)
-            S_draw.push_back(S[i]);
+            S_draw.push_back(S[(int)i]);
     int n_points_in_left = S_draw.size();
     for (std::size_t i = 0; i < dc_division_left.size(); i++)
         if (dc_division_left[i] == false)
-            S_draw.push_back(S[i]);
+            S_draw.push_back(S[(int)i]);
     S_draw = rotated(S_draw, angle, o);
     QVector<QPointF> center_draw = rotated(centers, angle, o);
     seperate(S_draw, center_draw, seperate_distance, n_points_in_left);

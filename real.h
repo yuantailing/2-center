@@ -2,11 +2,12 @@
 #define REAL_H
 
 #include <cmath>
+#include <algorithm>
 #include <vector>
 
-typedef double Real; // 用于表示坐标
+typedef double Real; // Used to represent coordinates
 
-typedef Real Float; // 用于表示角度
+typedef Real Float; // Used to represent angles
 
 class Coord {
 public:
@@ -25,7 +26,6 @@ public:
     inline bool operator ==(Coord const &o) const { return x == o.x && y == o.y; }
 };
 
-// 包围盒
 class BoundingBox {
 public:
     Real xmin, xmax;
@@ -37,13 +37,12 @@ public:
     Real diagonal() const { return std::sqrt(dx() * dx() + dy() * dy()); }
 };
 
-// 判断s是否在pq的左边
+// s lies left to pq
 inline bool to_left(Coord p, Coord q, Coord s) {
     Real x = p.x * q.y - p.y * q.x + q.x * s.y - q.y * s.x + s.x * p.y - s.y * p.x;
     return x > 0;
 }
 
-// 判断s是否在pq的左边
 inline bool not_to_right(Coord p, Coord q, Coord s) {
     Real x = p.x * q.y - p.y * q.x + q.x * s.y - q.y * s.x + s.x * p.y - s.y * p.x;
     return x >= 0;
