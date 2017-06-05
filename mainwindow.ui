@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>800</width>
-    <height>600</height>
+    <height>800</height>
    </rect>
   </property>
   <property name="mouseTracking">
@@ -147,7 +147,7 @@
      </rect>
     </property>
     <property name="minimum">
-     <number>10</number>
+     <number>3</number>
     </property>
     <property name="maximum">
      <number>100</number>
@@ -175,9 +175,9 @@
    <widget class="QSlider" name="horizontalSliderProgress">
     <property name="geometry">
      <rect>
-      <x>30</x>
+      <x>100</x>
       <y>90</y>
-      <width>411</width>
+      <width>361</width>
       <height>22</height>
      </rect>
     </property>
@@ -188,7 +188,7 @@
    <widget class="QTextBrowser" name="textBrowser">
     <property name="geometry">
      <rect>
-      <x>490</x>
+      <x>540</x>
       <y>10</y>
       <width>131</width>
       <height>71</height>
@@ -204,6 +204,29 @@ p, li { white-space: pre-wrap; }
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Drag:   Left Button&lt;/p&gt;
 &lt;p style=&quot; margin-top:0px; margin-bottom:0px; margin-left:0px; margin-right:0px; -qt-block-indent:0; text-indent:0px;&quot;&gt;Zoom:   Wheel&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
     </property>
+   </widget>
+   <widget class="QComboBox" name="comboBoxCenterNum">
+    <property name="geometry">
+     <rect>
+      <x>20</x>
+      <y>90</y>
+      <width>71</width>
+      <height>22</height>
+     </rect>
+    </property>
+    <property name="currentIndex">
+     <number>1</number>
+    </property>
+    <item>
+     <property name="text">
+      <string>1-center</string>
+     </property>
+    </item>
+    <item>
+     <property name="text">
+      <string>2-center</string>
+     </property>
+    </item>
    </widget>
   </widget>
   <widget class="QMenuBar" name="menuBar">

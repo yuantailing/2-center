@@ -48,19 +48,126 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         painter.drawEllipse(q, r, r);
     };
     auto paint_points_and_circles = [&](Real r, QVector<QPointF> S, QVector<QPointF> const &centers) {
-        painter.setPen(Qt::red);
-        painter.setBrush(Qt::red);
-        for (QPointF const &p: centers)
-            draw_circle(p, 3.);
-        painter.setPen(Qt::blue);
-        painter.setBrush(Qt::blue);
-        for (QPointF const &p: S)
-            draw_circle(p, 3.);
+        if (S.size() <= 1) {
+            painter.setPen(Qt::red);
+            painter.setBrush(Qt::red);
+            for (QPointF const &p: centers)
+                draw_circle(p, 3.);
+            painter.setPen(Qt::black);
+            painter.setBrush(Qt::black);
+            for (QPointF const &p: S)
+                draw_circle(p, 3.);
+        } else {
+            painter.setPen(Qt::black);
+            painter.setBrush(Qt::black);
+            for (QPointF const &p: S)
+                draw_circle(p, 3.);
+            painter.setPen(Qt::red);
+            painter.setBrush(Qt::red);
+            for (QPointF const &p: centers)
+                draw_circle(p, 3.);
+        }
         painter.setPen(Qt::red);
         painter.setBrush(Qt::NoBrush);
         for (QPointF const &p: centers)
             draw_circle(p, r * zoom);
     };
+    if (ui->comboBoxCenterNum->currentIndex() == 0) { // 1-center
+        auto norm2 = [](QPointF const &p) { return p.x() * p.x() + p.y() * p.y(); };
+        QVector<QPointF> S(this->S);
+        std::shuffle(S.begin(), S.end(), std::default_random_engine(0));
+        qreal const eps = 1e-6;
+        int time_multiple = (int)(10 * this->time_multiple);
+        int now = 0;
+        int current = -1;
+        QPointF d_current;
+        qreal r2_current;
+        QVector<int> key_points;
+        QPointF d;
+        qreal r2;
+        auto add_tick = [&](int current_) {
+            now++;
+            if (now * time_multiple <= ticks) {
+                current = current_;
+            }
+        };
+        auto set_key_points = [&](std::initializer_list<int> l) {
+            now++;
+            if (now * time_multiple <= ticks) {
+                current = -1;
+                key_points = l;
+                d_current = d;
+                r2_current = r2;
+            }
+        };
+
+        auto one_center = [&]() {
+            d = (S[0] + S[1]) / 2;
+            r2 = norm2(S[0] - d);
+            add_tick(0);
+            add_tick(1);
+            set_key_points({0, 1});
+            for (int i = 2; i < S.size(); i++) {
+                add_tick(i);
+                if (norm2(S[i] - d) <= r2) continue;
+                d = (S[0] + S[i]) / 2;
+                r2 = norm2(S[0] - d);
+                set_key_points({0, i});
+                for (int j = 1; j < i; j++) {
+                    add_tick(j);
+                    if (norm2(S[j] - d) <= r2) continue;
+                    d = (S[i] + S[j]) / 2;
+                    r2 = norm2(S[i] - d);
+                    qreal r2eps = std::sqrt(r2) * (1 + eps);
+                    r2eps *= r2eps;
+                    set_key_points({i, j});
+                    for (int k = 0; k < j; k++) {
+                        add_tick(k);
+                        if (norm2(S[k] - d) <= r2eps) continue;
+                        QPointF A = S[i] - S[j];
+                        QPointF B = S[i] - S[k];
+                        qreal c1 = (norm2(S[i]) - norm2(S[j])) / 2;
+                        qreal c2 = (norm2(S[i]) - norm2(S[k])) / 2;
+                        qreal det = A.x() * B.y() - A.y() * B.x();
+                        d.setX((c1 * B.y() - c2 * A.y()) / det);
+                        d.setY((c2 * A.x() - c1 * B.x()) / det);
+                        r2 = norm2(S[i] - d);
+                        r2eps = std::sqrt(r2) * (1 + eps);
+                        r2eps *= r2eps;
+                        set_key_points({i, j, k});
+                    }
+                }
+            }
+            add_tick(S.size());
+        };
+        one_center();
+        ui->horizontalSliderProgress->setMaximum((now + 8) * time_multiple);
+        if (ticks == 0) {
+            paint_points_and_circles(std::sqrt(r2), S, {d});
+        } else {
+            QVector<QPointF> S_draw;
+            for (int i = current + 1; i < S.size(); i++)
+                S_draw.push_back(S[i]);
+            paint_points_and_circles(std::sqrt(r2_current), S_draw, {d_current});
+            painter.setPen(Qt::red);
+            painter.setBrush(Qt::red);
+            for (int p: key_points)
+                draw_circle(S[p], 5.);
+            for (int i = 0; i <= current && i < S.size(); i++) {
+                if (i == current) {
+                    painter.setPen(Qt::black);
+                    painter.setBrush(Qt::NoBrush);
+                    draw_circle(S[i], 6.);
+                } else {
+                    painter.setPen(Qt::black);
+                    painter.setBrush(Qt::NoBrush);
+                    draw_circle(S[i], 4.);
+                }
+            }
+        }
+        QMainWindow::paintEvent(event);
+        return;
+    }
     if (ticks == 0 || S.size() <= 2 || centers.size() != 2 || dc_case == 0) {
         paint_points_and_circles(r, S, centers);
         QMainWindow::paintEvent(event);
@@ -339,10 +446,15 @@ void MainWindow::on_horizontalSliderProgress_sliderMoved(int position) {
     update();
 }
 
+void MainWindow::on_comboBoxCenterNum_currentIndexChanged(int) {
+    on_pushButtonStop_clicked();
+    recalculate();
+}
+
 void MainWindow::on_timer() {
     ticks += ui->horizontalScrollBarStep->value();
     ui->horizontalSliderProgress->setValue(ticks);
-    if (ticks >= ui->horizontalSliderProgress->maximum())
+    if (ticks > ui->horizontalSliderProgress->maximum())
         timer.stop();
     update();
 }
@@ -353,6 +465,10 @@ void MainWindow::reset_zoom() {
 }
 
 void MainWindow::recalculate() {
+    if (ui->comboBoxCenterNum->currentIndex() == 0) { // 1-center
+        ui->horizontalSliderProgress->setMaximum((int)(1000 * time_multiple));
+        return;
+    }
     std::vector<Coord> v;
     for (QPointF p: S) {
         v.push_back(Coord(Real(p.x()), Real(p.y())));
@@ -379,8 +495,13 @@ void MainWindow::recalculate() {
 
 bool MainWindow::prompt_stop() {
     if (ticks > 0) {
-        QMessageBox::information(this, "Tips", "Please click \"Stop\" before do this.");
-        return true;
+        if (ui->comboBoxCenterNum->currentIndex() == 0) {
+            on_pushButtonStop_clicked();
+            return false;
+        } else {
+            QMessageBox::information(this, "Tips", "Please click \"Stop\" before do this.");
+            return true;
+        }
     }
     return false;
 }

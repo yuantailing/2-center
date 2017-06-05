@@ -38,6 +38,7 @@ private slots:
     void on_pushButtonPause_clicked();
     void on_pushButtonStop_clicked();
     void on_horizontalSliderProgress_sliderMoved(int position);
+    void on_comboBoxCenterNum_currentIndexChanged(int index);
     void on_timer();
 
 private:
