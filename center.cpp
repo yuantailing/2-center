@@ -15,11 +15,11 @@ bool quick_case_only = false;
 
 static int tmp_dc_case;
 static Real tmp_dc_rotate_angle;
-static std::vector<std::size_t> tmp_dc_division_left;
+static std::vector<bool> tmp_dc_division_left;
 
 int dc_case = 0;
 Float dc_rotate_angle = 0;
-std::vector<std::size_t> dc_division_left;
+std::vector<bool> dc_division_left;
 
 // S内所有点绕o顺时针旋转theta弧度
 static void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real(0), Real(0))) {
@@ -63,8 +63,9 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
                 tmp_dc_case = 1;
                 tmp_dc_rotate_angle = j * delta;
                 tmp_dc_division_left.clear();
+                tmp_dc_division_left.resize(S.size(), false);
                 for (std::size_t k = 0; k < i; k++)
-                    tmp_dc_division_left.push_back(paired[k].second);
+                    tmp_dc_division_left[paired[k].second] = true;
                 return true;
             }
             if (i < rotated_S.size()) {
@@ -168,10 +169,11 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
                                 tmp_dc_case = 3;
                                 tmp_dc_rotate_angle = rotate_angle;
                                 tmp_dc_division_left.clear();
+                                tmp_dc_division_left.resize(S.size(), false);
                                 for (int i = 0; i < v_pos; i++)
-                                    tmp_dc_division_left.push_back(paired[Q0[i]].second);
+                                    tmp_dc_division_left[paired[Q0[i]].second] = true;
                                 for (int i = 0; i < h_pos; i++)
-                                    tmp_dc_division_left.push_back(paired[Q1[i]].second);
+                                    tmp_dc_division_left[paired[Q1[i]].second] = true;
                                 return true;
                             }
                             if (!Y0 && !Y1) {
@@ -274,30 +276,20 @@ void one_circle(std::vector<Coord> &S, Real eps, Real &r_out, Coord &center_out)
 void fix_circle(Real r, std::vector<Coord> const &S, std::vector<Coord> const &centers, Real eps, Real &r_out, std::vector<Coord> &centers_out) { // centers和centers_out可以相同
     if (centers.size() != 2)
         return;
-    std::vector<bool> in_left(S.size());
-    for (std::size_t i = 0; i < in_left.size(); i++)
-        in_left[i] = false;
-    for (std::size_t i: dc_division_left)
-        in_left[i] = true;
-    for (std::size_t i = 0; i < in_left.size(); i++) {
+    for (std::size_t i = 0; i < dc_division_left.size(); i++) {
         Real d_left = (S[i] - centers[0]).norm();
         Real d_right = (S[i] - centers[1]).norm();
-        if (in_left[i]) {
+        if (dc_division_left[i]) {
             if (d_left > r + eps && d_left > d_right)
-                in_left[i] = false;
+                dc_division_left[i] = false;
         } else {
             if (d_right > r + eps && d_left < d_right)
-                in_left[i] = true;
+                dc_division_left[i] = true;
         }
-    }
-    dc_division_left.clear();
-    for (std::size_t i = 0; i < in_left.size(); i++) {
-        if (in_left[i])
-            dc_division_left.push_back(i);
     }
     std::vector<Coord> Ss[2];
     for (std::size_t i = 0; i < S.size(); i++) {
-        Ss[in_left[i] ? 0 : 1].push_back(S[i]);
+        Ss[dc_division_left[i] ? 0 : 1].push_back(S[i]);
     }
     r_out = 0;
     centers_out.resize(2);

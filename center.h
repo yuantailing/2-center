@@ -15,7 +15,7 @@ extern bool quick_case_only;
 
 extern int dc_case;
 extern Float dc_rotate_angle;
-extern std::vector<std::size_t> dc_division_left;
+extern std::vector<bool> dc_division_left;
 
 PCenterResult p_center(int p, std::vector<Coord> const &S, Real eps=Real(1e-4));
 
