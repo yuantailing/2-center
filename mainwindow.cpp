@@ -13,9 +13,7 @@
 
 MainWindow::MainWindow(QWidget *parent) :
     QMainWindow(parent),
-    ui(new Ui::MainWindow)
-{
-    test();
+    ui(new Ui::MainWindow) {
     ui->setupUi(this);
     ui->labelKptreeStat->hide();
     ui->checkBoxQuick->hide();
@@ -34,12 +32,12 @@ MainWindow::MainWindow(QWidget *parent) :
     time_multiple = 40.;
     ticks = 0;
 
+    this->setWindowTitle(QString("Planar 2-Center Problem"));
     on_pushButtonCircle_clicked();
     resize(800, 800);
 }
 
-MainWindow::~MainWindow()
-{
+MainWindow::~MainWindow() {
     delete ui;
 }
 
@@ -49,7 +47,11 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         QPointF q = QPointF(p.x() - topleft.x(), -p.y() + topleft.y()) * zoom;
         painter.drawEllipse(q, r, r);
     };
-    if (ticks == 0 || S.size() <= 2 || centers.size() != 2 || dc_case == 0) {
+    auto paint_points_and_circles = [&](Real r, QVector<QPointF> S, QVector<QPointF> const &centers) {
+        painter.setPen(Qt::red);
+        painter.setBrush(Qt::red);
+        for (QPointF const &p: centers)
+            draw_circle(p, 3.);
         painter.setPen(Qt::blue);
         painter.setBrush(Qt::blue);
         for (QPointF const &p: S)
@@ -58,25 +60,12 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         painter.setBrush(Qt::NoBrush);
         for (QPointF const &p: centers)
             draw_circle(p, r * zoom);
-        painter.setBrush(Qt::red);
-        for (QPointF const &p: centers)
-            draw_circle(p, 3.);
+    };
+    if (ticks == 0 || S.size() <= 2 || centers.size() != 2 || dc_case == 0) {
+        paint_points_and_circles(r, S, centers);
         QMainWindow::paintEvent(event);
         return;
     }
-    auto paint_points_and_circles = [&](Real r, QVector<QPointF> S, QVector<QPointF> const &centers) {
-        painter.setPen(Qt::blue);
-        painter.setBrush(Qt::blue);
-        for (QPointF const &p: S)
-            draw_circle(p, 3.);
-        painter.setPen(Qt::red);
-        painter.setBrush(Qt::NoBrush);
-        for (QPointF const &p: centers)
-            draw_circle(p, r * zoom);
-        painter.setBrush(Qt::red);
-        for (QPointF const &p: centers)
-            draw_circle(p, 3.);
-    };
     auto rotated = [](QVector<QPointF> const &S, Float theta, QPointF const &o) {
         QVector<QPointF> res;
         res.reserve(S.size());
@@ -109,7 +98,7 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         v.push_back(Coord(Real(p.x()), Real(p.y())));
     BoundingBox bb(BoundingBox::from_vector(v));
     Float angle = dc_rotate_angle * std::min(1., 1. / rotate_time * ticks);
-    qreal max_seperate_distance = r * 1.5;
+    qreal max_seperate_distance = r * 1.2;
     qreal seperate_distance = max_seperate_distance * std::max(0., std::min(1., (ticks - rotate_time) * 1.0 / seperate_time));
     QPointF o((bb.xmax + bb.xmin) / 2, (bb.xmax + bb.xmin) / 2);
     QVector<QPointF> S_draw = rotated(S, angle, o);
@@ -345,9 +334,16 @@ void MainWindow::on_pushButtonStop_clicked() {
     update();
 }
 
+void MainWindow::on_horizontalSliderProgress_sliderMoved(int position) {
+    ticks = position;
+    update();
+}
+
 void MainWindow::on_timer() {
     ticks += ui->horizontalScrollBarStep->value();
     ui->horizontalSliderProgress->setValue(ticks);
+    if (ticks >= ui->horizontalSliderProgress->maximum())
+        timer.stop();
     update();
 }
 
@@ -363,7 +359,7 @@ void MainWindow::recalculate() {
     }
     PCenterResult result;
     quick_case_only = ui->checkBoxQuick->isChecked();
-    result = p_center(2, v, 2e-4);
+    result = p_center(2, v, 1e-3);
     r = (qreal)result.r;
     centers.clear();
     for (Coord p: result.centers)
@@ -408,9 +404,4 @@ void MainWindow::test() {
         tree.insert(i);
     }
     tree.has_intersection();
-}
-
-void MainWindow::on_horizontalSliderProgress_sliderMoved(int position) {
-    ticks = position;
-    update();
 }

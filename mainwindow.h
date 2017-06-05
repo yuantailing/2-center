@@ -37,9 +37,8 @@ private slots:
     void on_pushButtonPlay_clicked();
     void on_pushButtonPause_clicked();
     void on_pushButtonStop_clicked();
-    void on_timer();
-
     void on_horizontalSliderProgress_sliderMoved(int position);
+    void on_timer();
 
 private:
     void reset_zoom();

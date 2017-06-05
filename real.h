@@ -33,6 +33,8 @@ public:
     static BoundingBox from_vector(std::vector<Coord> const &S);
     Real dx() const { return xmax - xmin; }
     Real dy() const { return ymax - ymin; }
+    Real long_edge() const { return std::max(dx(), dy()); }
+    Real diagonal() const { return std::sqrt(dx() * dx() + dy() * dy()); }
 };
 
 // 判断s是否在pq的左边

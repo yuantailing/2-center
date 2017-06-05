@@ -36,7 +36,7 @@ static bool lt_by_x(Coord const &a, Coord const &b) {
 }
 
 bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
-    Float delta = M_PI / 18;
+    Float delta = M_PI / 36;
     for (int j = 0; j * delta < M_PI - delta / 2; j++) {
         std::vector<Coord> rotated_S = S;
         rotate(rotated_S, j * delta);
@@ -51,8 +51,6 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
         });
         for (std::size_t i = 0; i < paired.size(); i++)
             rotated_S[i] = paired[i].first;
-        BoundingBox bb = BoundingBox::from_vector(rotated_S);
-        Real long_edge = std::max(bb.dx(), bb.dy());
         Kptree SL(r, rotated_S), SR(r, rotated_S);
         for (size_t i = 0; i < rotated_S.size(); i++)
             SR.insert(i);
@@ -74,11 +72,11 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
                 SR.remove(i);
             }
         }
+        BoundingBox bb = BoundingBox::from_vector(rotated_S);
+        Real long_edge = bb.long_edge();
         if (long_edge > r * 5)
             continue;
-        for (Real lambdax = bb.xmin; lambdax <= bb.xmax; lambdax += 0.3 * r) {
-            // TODO: r到3r之间的情况
-        }
+        for (Real lambdax = bb.xmin; lambdax <= bb.xmax; lambdax += 0.3 * r) { }
     }
     return false;
 }
@@ -101,7 +99,7 @@ bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) 
         for (std::size_t i = 0; i < paired.size(); i++)
             rotated_S[i] = paired[i].first;
         BoundingBox bb = BoundingBox::from_vector(rotated_S);
-        Real long_edge = std::max(bb.dx(), bb.dy());
+        Real long_edge = bb.long_edge();
         if (long_edge > r * 3)
             continue;
         Real de = r * 0.7057413;
@@ -228,9 +226,9 @@ bool DC_check(Real r, std::vector<Coord> const &S, std::vector<Coord> const &cen
     return true;
 }
 
-void one_circle(std::vector<Coord> const &S, Real eps, Real &r_out, Coord &center_out) {
-    r_out = 50.0;
-    center_out = Coord(50, 50);
+void one_circle(std::vector<Coord> &S, Real eps, Real &r_out, Coord &center_out) { // S will be modified
+    std::default_random_engine e;
+    std::shuffle(S.begin(), S.end(), e);
     if (S.size() == 0) {
         r_out = 0;
         center_out = Coord(0, 0);
@@ -241,7 +239,35 @@ void one_circle(std::vector<Coord> const &S, Real eps, Real &r_out, Coord &cente
         center_out = (S[0] + S[1]) / 2;
         r_out = (S[0] - center_out).norm();
     } else {
-
+        Coord &d(center_out);
+        d = (S[0] + S[1]) / 2;
+        Real r2 = (S[0] - d).norm2();
+        for (std::size_t i = 2; i < S.size(); i++) {
+            if ((S[i] - d).norm2() <= r2) continue;
+            d = (S[0] + S[i]) / 2;
+            r2 = (S[0] - d).norm2();
+            for (std::size_t j = 1; j < i; j++) {
+                if ((S[j] - d).norm2() <= r2) continue;
+                d = (S[i] + S[j]) / 2;
+                r2 = (S[i] - d).norm2();
+                Real r2eps = std::sqrt(r2) + eps;
+                r2eps *= r2eps;
+                for (std::size_t k = 0; k < j; k++) {
+                    if ((S[k] - d).norm2() <= r2eps) continue;
+                    Coord A = S[i] - S[j];
+                    Coord B = S[i] - S[k];
+                    Real c1 = (S[i].norm2() - S[j].norm2()) / 2;
+                    Real c2 = (S[i].norm2() - S[k].norm2()) / 2;
+                    Real det = A.x * B.y - A.y * B.x;
+                    d.x = (c1 * B.y - c2 * A.y) / det;
+                    d.y = (c2 * A.x - c1 * B.x) / det;
+                    r2 = (S[i] - d).norm2();
+                    r2eps = std::sqrt(r2) + eps;
+                    r2eps *= r2eps;
+                }
+            }
+        }
+        r_out = std::sqrt(r2);
     }
 }
 
@@ -269,7 +295,6 @@ void fix_circle(Real r, std::vector<Coord> const &S, std::vector<Coord> const &c
         if (in_left[i])
             dc_division_left.push_back(i);
     }
-    return;
     std::vector<Coord> Ss[2];
     for (std::size_t i = 0; i < S.size(); i++) {
         Ss[in_left[i] ? 0 : 1].push_back(S[i]);
@@ -303,9 +328,9 @@ PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
     }
     BoundingBox bb = BoundingBox::from_vector(S0);
     PCenterResult result;
-    Real r_stop = std::sqrt(bb.dx() * bb.dx() + bb.dy() * bb.dy()) * eps / 4;
+    Real r_stop = bb.diagonal() * eps / 4;
     Real lo = 0;
-    Real hi = std::sqrt(bb.dx() * bb.dx() + bb.dy() * bb.dy()) / 2;
+    Real hi = bb.diagonal() / 2;
     std::vector<Coord> S;
     static std::default_random_engine random_engine = std::default_random_engine(0);
     std::uniform_real_distribution<Real> u(-r_stop, r_stop);
@@ -360,7 +385,7 @@ PCenterResult p_center(int p, std::vector<Coord> const &S0, Real eps) {
             lo = mi;
         }
     }
-    fix_circle(result.r, S0, result.centers, r_stop, result.r, result.centers);
+    fix_circle(result.r, S0, result.centers, bb.diagonal() * 1e-6, result.r, result.centers);
     qDebug() << Kptree::get_stat_insert_called() << Kptree::get_stat_remove_called() << Kptree::get_stat_intersect_called();
     return result;
 }

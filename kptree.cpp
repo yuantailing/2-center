@@ -76,7 +76,6 @@ bool Kptree::has_intersection() const {
     bool res_kp = has_intersection_kp();
     return res_kp;
     bool res_force = has_intersection_force();
-    //if (res_kp == true && res_force == false) {
     if (res_kp != res_force) {
         qDebug() << res_kp << res_force;
         int cnt = 0;
