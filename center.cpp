@@ -14,7 +14,7 @@
 bool quick_case_only = false;
 
 static int tmp_dc_case;
-static Real tmp_dc_rotate_angle;
+static Float tmp_dc_rotate_angle;
 static std::vector<bool> tmp_dc_division_left;
 
 int dc_case = 0;
@@ -31,15 +31,12 @@ static void rotate(std::vector<Coord> &S, Float theta, Coord const &o=Coord(Real
     }
 }
 
-static bool lt_by_x(Coord const &a, Coord const &b) {
-    return a.x < b.x ? true : (a.x == b.x ? a.y < b.y : false);
-}
-
 bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
     Float delta = M_PI / 36;
     for (int j = 0; j * delta < M_PI - delta / 2; j++) {
+        Float rotate_angle = j * delta + delta * 0.47631;
         std::vector<Coord> rotated_S = S;
-        rotate(rotated_S, j * delta);
+        rotate(rotated_S, rotate_angle);
         std::vector<std::pair<Coord, std::size_t> > paired(rotated_S.size());
         for (std::size_t i = 0; i < rotated_S.size(); i++) {
             paired[i] = std::make_pair(rotated_S[i], i);
@@ -59,9 +56,9 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
                 centers.clear();
                 centers.push_back(SL.center_avaliable());
                 centers.push_back(SR.center_avaliable());
-                rotate(centers, -j * delta);
+                rotate(centers, -rotate_angle);
                 tmp_dc_case = 1;
-                tmp_dc_rotate_angle = j * delta;
+                tmp_dc_rotate_angle = rotate_angle;
                 tmp_dc_division_left.clear();
                 tmp_dc_division_left.resize(S.size(), false);
                 for (std::size_t k = 0; k < i; k++)
@@ -85,7 +82,7 @@ bool DC_separated(Real r, std::vector<Coord> const &S, std::vector<Coord> &cente
 bool DC_close(Real r, std::vector<Coord> const &S, std::vector<Coord> &centers) {
     Float delta = M_PI / 3;
     for (int j0 = 0; j0 * delta < M_PI - delta / 2; j0++) {
-        Real rotate_angle = j0 * delta;
+        Float rotate_angle = j0 * delta + delta * 0.31287;
         std::vector<Coord> rotated_S = S;
         rotate(rotated_S, rotate_angle);
         std::vector<std::pair<Coord, std::size_t> > paired(rotated_S.size());
@@ -228,8 +225,8 @@ bool DC_check(Real r, std::vector<Coord> const &S, std::vector<Coord> const &cen
     return true;
 }
 
-void one_circle(std::vector<Coord> &S, Real eps, Real &r_out, Coord &center_out) { // S will be modified
-    std::default_random_engine e;
+void one_circle(std::vector<Coord> &S, Real &r_out, Coord &center_out) { // S will be modified
+    std::default_random_engine e(0);
     std::shuffle(S.begin(), S.end(), e);
     if (S.size() == 0) {
         r_out = 0;
@@ -241,6 +238,7 @@ void one_circle(std::vector<Coord> &S, Real eps, Real &r_out, Coord &center_out)
         center_out = (S[0] + S[1]) / 2;
         r_out = (S[0] - center_out).norm();
     } else {
+        Real eps = 1e-6;
         Coord &d(center_out);
         d = (S[0] + S[1]) / 2;
         Real r2 = (S[0] - d).norm2();
@@ -252,7 +250,7 @@ void one_circle(std::vector<Coord> &S, Real eps, Real &r_out, Coord &center_out)
                 if ((S[j] - d).norm2() <= r2) continue;
                 d = (S[i] + S[j]) / 2;
                 r2 = (S[i] - d).norm2();
-                Real r2eps = std::sqrt(r2) + eps;
+                Real r2eps = std::sqrt(r2) * (1 + eps);
                 r2eps *= r2eps;
                 for (std::size_t k = 0; k < j; k++) {
                     if ((S[k] - d).norm2() <= r2eps) continue;
@@ -264,7 +262,7 @@ void one_circle(std::vector<Coord> &S, Real eps, Real &r_out, Coord &center_out)
                     d.x = (c1 * B.y - c2 * A.y) / det;
                     d.y = (c2 * A.x - c1 * B.x) / det;
                     r2 = (S[i] - d).norm2();
-                    r2eps = std::sqrt(r2) + eps;
+                    r2eps = std::sqrt(r2) * (1 + eps);
                     r2eps *= r2eps;
                 }
             }
@@ -295,7 +293,7 @@ void fix_circle(Real r, std::vector<Coord> const &S, std::vector<Coord> const &c
     centers_out.resize(2);
     for (std::size_t i = 0; i < 2; i++) {
         Real r_tmp;
-        one_circle(Ss[i], eps, r_tmp, centers_out[i]);
+        one_circle(Ss[i], r_tmp, centers_out[i]);
         r_out = std::max(r_out, r_tmp);
     }
 }

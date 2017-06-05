@@ -28,8 +28,8 @@ MainWindow::MainWindow(QWidget *parent) :
     kp_last_intersect_call = Kptree::get_stat_intersect_called();
 
     connect(&timer, SIGNAL(timeout()), this, SLOT(on_timer()));
-    timer.setInterval(8);
-    time_multiple = 40.;
+    timer.setInterval(16);
+    time_multiple = 20.;
     ticks = 0;
 
     this->setWindowTitle(QString("Planar 2-Center Problem"));
@@ -48,25 +48,14 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         painter.drawEllipse(q, r, r);
     };
     auto paint_points_and_circles = [&](Real r, QVector<QPointF> S, QVector<QPointF> const &centers) {
-        if (S.size() <= 1) {
-            painter.setPen(Qt::red);
-            painter.setBrush(Qt::red);
-            for (QPointF const &p: centers)
-                draw_circle(p, 3.);
-            painter.setPen(Qt::black);
-            painter.setBrush(Qt::black);
-            for (QPointF const &p: S)
-                draw_circle(p, 3.);
-        } else {
-            painter.setPen(Qt::black);
-            painter.setBrush(Qt::black);
-            for (QPointF const &p: S)
-                draw_circle(p, 3.);
-            painter.setPen(Qt::red);
-            painter.setBrush(Qt::red);
-            for (QPointF const &p: centers)
-                draw_circle(p, 3.);
-        }
+        painter.setPen(Qt::red);
+        painter.setBrush(Qt::red);
+        for (QPointF const &p: centers)
+            draw_circle(p, 3.);
+        painter.setPen(Qt::black);
+        painter.setBrush(Qt::black);
+        for (QPointF const &p: S)
+            draw_circle(p, 3.);
         painter.setPen(Qt::red);
         painter.setBrush(Qt::NoBrush);
         for (QPointF const &p: centers)
@@ -185,7 +174,7 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         return res;
     };
     auto seperate = [](QVector<QPointF> &S, QVector<QPointF> &centers, qreal delta, int num_left) {
-        for (std::size_t i = 0; i < S.size(); i++) {
+        for (int i = 0; i < S.size(); i++) {
                 S[i].setX(S[i].x() + (i < num_left ? -delta : delta));
         }
         centers[0].setX(centers[0].x() - delta);
@@ -220,14 +209,100 @@ void MainWindow::paintEvent(QPaintEvent *event) {
     };
     std::sort(S_draw.begin(), S_draw.begin() + n_points_in_left, lt_by_x);
     std::sort(S_draw.begin() + n_points_in_left, S_draw.end(), lt_by_x);
-    int draw_type = 1;
+    int draw_type = 0;
     int draw_br_n = (ticks - rotate_time - seperate_time) / one_br_time;
+    if (draw_br_n > 0) draw_type = 1;
     if (draw_br_n > S_draw.size()) {
         draw_br_n -= S_draw.size();
         draw_type = 2;
         if (draw_br_n > S_draw.size()) {
             draw_br_n = S_draw.size();
             draw_type = 3;
+        }
+    }
+    for (int i = 0; i < this->height(); i++) {
+        qreal y = topleft.y() - i / zoom;
+        int xminleftup = 0, xmaxleftup = width() - 1, xminrightup = 0, xmaxrightup = width() - 1;
+        int xminleftdown = 0, xmaxleftdown = width() - 1, xminrightdown = 0, xmaxrightdown = width() - 1;
+        for (int j = 0; j < S_draw.size(); j++) {
+            if (j >= draw_br_n)
+                break;
+            QPointF o = S_draw[j];
+            qreal xminup, xmaxup;
+            qreal xmindown, xmaxdown;
+            qreal delta = r * r - (o.y() - y) * (o.y() - y);
+            if (delta < 0) {
+                xminup = xmindown = o.x() + 1;
+                xmaxup = xmaxdown = o.x() - 1;
+            } else {
+                delta = std::sqrt(delta);
+                xminup = xmindown = o.x() - delta;
+                xmaxup = xmaxdown = o.x() + delta;
+            }
+            if (o.y() <= y) {
+                xminup = o.x() - r;
+                xmaxup = o.x() + r;
+            } else if (o.y() >= y) {
+                xmindown = o.x() - r;
+                xmaxdown = o.x() + r;
+            }
+            if (j < n_points_in_left) {
+                xminleftup = std::max(xminleftup, (int)std::round((xminup - topleft.x()) * zoom));
+                xmaxleftup = std::min(xmaxleftup, (int)std::round((xmaxup - topleft.x()) * zoom));
+                xminleftdown = std::max(xminleftdown, (int)std::round((xmindown - topleft.x()) * zoom));
+                xmaxleftdown = std::min(xmaxleftdown, (int)std::round((xmaxdown - topleft.x()) * zoom));
+            } else {
+                xminrightup = std::max(xminrightup, (int)std::round((xminup - topleft.x()) * zoom));
+                xmaxrightup = std::min(xmaxrightup, (int)std::round((xmaxup - topleft.x()) * zoom));
+                xminrightdown = std::max(xminrightdown, (int)std::round((xmindown - topleft.x()) * zoom));
+                xmaxrightdown = std::min(xmaxrightdown, (int)std::round((xmaxdown - topleft.x()) * zoom));
+            }
+        }
+        if (draw_type == 1) {
+            painter.setPen(Qt::yellow);
+            painter.setBrush(Qt::yellow);
+            if (xminleftup < xmaxleftup) {
+                painter.drawLine(QPointF(xminleftup, i), QPointF(xmaxleftup, i));
+            }
+            if (xminrightup < xmaxrightup && draw_br_n > n_points_in_left) {
+                painter.drawLine(QPointF(xminrightup, i), QPointF(xmaxrightup, i));
+            }
+        } else if (draw_type == 2) {
+            painter.setPen(Qt::yellow);
+            painter.setBrush(Qt::yellow);
+            if (xminleftdown < xmaxleftdown) {
+                painter.drawLine(QPointF(xminleftdown, i), QPointF(xmaxleftdown, i));
+            }
+            if (xminrightdown < xmaxrightdown && draw_br_n > n_points_in_left) {
+                painter.drawLine(QPointF(xminrightdown, i), QPointF(xmaxrightdown, i));
+            }
+        } else if (draw_type == 3) {
+            painter.setPen(QColor(255, 255, 140));
+            painter.setBrush(QColor(255, 255, 140));
+            if (xminleftup < xmaxleftup) {
+                painter.drawLine(QPointF(xminleftup, i), QPointF(xmaxleftup, i));
+            }
+            if (xminrightup < xmaxrightup && draw_br_n > n_points_in_left) {
+                painter.drawLine(QPointF(xminrightup, i), QPointF(xmaxrightup, i));
+            }
+            if (xminleftdown < xmaxleftdown) {
+                painter.drawLine(QPointF(xminleftdown, i), QPointF(xmaxleftdown, i));
+            }
+            if (xminrightdown < xmaxrightdown && draw_br_n > n_points_in_left) {
+                painter.drawLine(QPointF(xminrightdown, i), QPointF(xmaxrightdown, i));
+            }
+            painter.setPen(Qt::yellow);
+            painter.setBrush(Qt::yellow);
+            xminleftup = std::max(xminleftup, xminleftdown);
+            xmaxleftup = std::min(xmaxleftup, xmaxleftdown);
+            xminrightup = std::max(xminrightup, xminrightdown);
+            xmaxrightup = std::min(xmaxrightup, xmaxrightdown);
+            if (xminleftup < xmaxleftup) {
+                painter.drawLine(QPointF(xminleftup, i), QPointF(xmaxleftup, i));
+            }
+            if (xminrightup < xmaxrightup && draw_br_n > n_points_in_left) {
+                painter.drawLine(QPointF(xminrightup, i), QPointF(xmaxrightup, i));
+            }
         }
     }
     for (int i = 0; i < draw_br_n; i++) {
@@ -433,6 +508,8 @@ void MainWindow::on_checkBoxQuick_stateChanged(int) {
 void MainWindow::on_pushButtonPlay_clicked() {
     if (ticks >= ui->horizontalSliderProgress->maximum())
         on_pushButtonStop_clicked();
+    if ((std::size_t)S.size() > dc_division_left.size())
+        recalculate();
     timer.start();
 }
 
