@@ -46,21 +46,26 @@ MainWindow::~MainWindow() {
 }
 
 void MainWindow::paintEvent(QPaintEvent *event) {
+    // defined colors
+    QColor blue(0, 140, 255);
+    QColor lblue(130, 200, 255);
+    QColor red(255, 0, 0);
+    QColor black(20, 20, 20);
     QPainter painter(this);
     auto draw_circle = [&](QPointF const &p, Real r) {
         QPointF q = QPointF(p.x() - topleft.x(), -p.y() + topleft.y()) * zoom;
         painter.drawEllipse(q, r, r);
     };
     auto paint_points_and_circles = [&](Real r, QVector<QPointF> S, QVector<QPointF> const &centers) {
-        painter.setPen(Qt::red);
-        painter.setBrush(Qt::red);
+        painter.setPen(red);
+        painter.setBrush(red);
         for (QPointF const &p: centers)
             draw_circle(p, 3.);
-        painter.setPen(Qt::black);
-        painter.setBrush(Qt::black);
+        painter.setPen(black);
+        painter.setBrush(black);
         for (QPointF const &p: S)
             draw_circle(p, 3.);
-        painter.setPen(Qt::red);
+        painter.setPen(red);
         painter.setBrush(Qt::NoBrush);
         for (QPointF const &p: centers)
             draw_circle(p, r * zoom);
@@ -229,6 +234,8 @@ void MainWindow::paintEvent(QPaintEvent *event) {
             draw_type = 3;
         }
     }
+    painter.setPen(lblue);
+    painter.setBrush(lblue);
     for (int i = 0; i < this->height(); i++) {
         qreal y = topleft.y() - i / zoom;
         int xminleftup = 0, xmaxleftup = width() - 1, xminrightup = 0, xmaxrightup = width() - 1;
@@ -268,8 +275,6 @@ void MainWindow::paintEvent(QPaintEvent *event) {
             }
         }
         if (draw_type == 1) {
-            painter.setPen(Qt::yellow);
-            painter.setBrush(Qt::yellow);
             if (xminleftup < xmaxleftup) {
                 painter.drawLine(QPointF(xminleftup, i), QPointF(xmaxleftup, i));
             }
@@ -277,8 +282,6 @@ void MainWindow::paintEvent(QPaintEvent *event) {
                 painter.drawLine(QPointF(xminrightup, i), QPointF(xmaxrightup, i));
             }
         } else if (draw_type == 2) {
-            painter.setPen(Qt::yellow);
-            painter.setBrush(Qt::yellow);
             if (xminleftdown < xmaxleftdown) {
                 painter.drawLine(QPointF(xminleftdown, i), QPointF(xmaxleftdown, i));
             }
@@ -286,8 +289,7 @@ void MainWindow::paintEvent(QPaintEvent *event) {
                 painter.drawLine(QPointF(xminrightdown, i), QPointF(xmaxrightdown, i));
             }
         } else if (draw_type == 3) {
-            painter.setPen(QColor(255, 255, 140));
-            painter.setBrush(QColor(255, 255, 140));
+            painter.setOpacity(0.5);
             if (xminleftup < xmaxleftup) {
                 painter.drawLine(QPointF(xminleftup, i), QPointF(xmaxleftup, i));
             }
@@ -300,8 +302,7 @@ void MainWindow::paintEvent(QPaintEvent *event) {
             if (xminrightdown < xmaxrightdown && draw_br_n > n_points_in_left) {
                 painter.drawLine(QPointF(xminrightdown, i), QPointF(xmaxrightdown, i));
             }
-            painter.setPen(Qt::yellow);
-            painter.setBrush(Qt::yellow);
+            painter.setOpacity(1.);
             xminleftup = std::max(xminleftup, xminleftdown);
             xmaxleftup = std::min(xmaxleftup, xmaxleftdown);
             xminrightup = std::max(xminrightup, xminrightdown);
@@ -319,7 +320,7 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         QPointF q = QPointF(p.x() - topleft.x(), -p.y() + topleft.y()) * zoom;
         Real r = this->r * this->zoom;
         painter.setOpacity(1.0);
-        painter.setPen(Qt::green);
+        painter.setPen(blue);
         painter.setBrush(Qt::NoBrush);
         QRectF rect(q.x() - r, q.y() - r, r * 2, r * 2);
         if (draw_type == 1) {
