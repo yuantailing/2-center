@@ -78,8 +78,8 @@ void MainWindow::paintEvent(QPaintEvent *event) {
         int time_multiple = (int)(10 * this->time_multiple);
         int now = 0;
         int current = -1;
-        QPointF d_current;
-        qreal r2_current;
+        QPointF d_current = S.empty() ? QPointF(0, 0) : S.first();
+        qreal r2_current = 0;
         QVector<int> key_points;
         QPointF d;
         qreal r2;
@@ -101,6 +101,17 @@ void MainWindow::paintEvent(QPaintEvent *event) {
             }
         };
         auto one_center = [&]() {
+            if (S.empty()) {
+                d = QPointF(0, 0);
+                r2 = 0;
+                set_key_points({});
+                return;
+            } else {
+                d = S[0];
+                r2 = 0;
+                set_key_points({0});
+                if (S.size() == 1) return;
+            }
             d = (S[0] + S[1]) / 2;
             r2 = norm2(S[0] - d);
             add_tick(0);
